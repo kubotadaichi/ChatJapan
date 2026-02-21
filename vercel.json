@@ -1,10 +1,4 @@
 {
   "framework": "nextjs",
-  "regions": ["hnd1"],
-  "env": {
-    "ESTAT_API_KEY": "@estat-api-key",
-    "OPENAI_API_KEY": "@openai-api-key",
-    "LLM_PROVIDER": "openai",
-    "LLM_MODEL": "gpt-4o"
-  }
+  "regions": ["hnd1"]
 }
