@@ -2,6 +2,7 @@
 
 import { SplitLayout } from '@/components/layout/SplitLayout'
 import { MapPanel } from '@/components/map/MapPanel'
+import { ChatPanel } from '@/components/chat/ChatPanel'
 import { useMapSelection } from '@/hooks/useMapSelection'
 
 export default function Home() {
@@ -16,11 +17,7 @@ export default function Home() {
           onAreaClear={clearSelection}
         />
       }
-      right={
-        <div className="flex items-center justify-center h-full text-zinc-400">
-          Chat Panel (coming soon)
-        </div>
-      }
+      right={<ChatPanel selectedArea={selectedArea} />}
     />
   )
 }
