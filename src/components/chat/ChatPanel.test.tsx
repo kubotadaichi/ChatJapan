@@ -40,4 +40,10 @@ describe('ChatPanel', () => {
     render(<ChatPanel selectedArea={null} />)
     expect(screen.getByText(/地図でエリアを選択/)).toBeInTheDocument()
   })
+
+  it('uses theme token classes in panel header', () => {
+    render(<ChatPanel selectedArea={null} />)
+    const title = screen.getByText('ChatJapan')
+    expect(title.closest('div')).toHaveClass('bg-background')
+  })
 })

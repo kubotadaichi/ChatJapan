@@ -14,7 +14,7 @@ export function MessageList({ messages }: MessageListProps) {
 
   if (messages.length === 0) {
     return (
-      <div className="flex-1 flex items-center justify-center text-zinc-400 text-sm px-6 text-center">
+      <div className="flex-1 flex items-center justify-center text-muted-foreground text-sm px-6 text-center">
         <p>地図でエリアを選択して、統計情報について質問してみましょう。<br />例: 「この地域の人口構成を教えて」</p>
       </div>
     )
@@ -32,7 +32,7 @@ export function MessageList({ messages }: MessageListProps) {
               className={`max-w-[80%] rounded-lg px-4 py-2 text-sm whitespace-pre-wrap ${
                 message.role === 'user'
                   ? 'bg-blue-500 text-white'
-                  : 'bg-zinc-100 text-zinc-900'
+                  : 'bg-muted text-foreground'
               }`}
             >
               {message.parts

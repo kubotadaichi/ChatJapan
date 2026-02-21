@@ -8,7 +8,7 @@ interface SplitLayoutProps {
 export function SplitLayout({ left, right }: SplitLayoutProps) {
   return (
     <div className="flex h-full w-full overflow-hidden">
-      <div className="flex-1 min-w-0 border-r border-zinc-200">
+      <div className="flex-1 min-w-0 border-r border-border">
         {left}
       </div>
       <div className="flex flex-col w-[480px] shrink-0">

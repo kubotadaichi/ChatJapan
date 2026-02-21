@@ -21,4 +21,9 @@ describe('SplitLayout', () => {
     const wrapper = container.firstChild as HTMLElement
     expect(wrapper.className).toContain('flex')
   })
+
+  it('uses border token class for panel separator', () => {
+    const { container } = render(<SplitLayout left={<div />} right={<div />} />)
+    expect(container.querySelector('.border-border')).toBeInTheDocument()
+  })
 })

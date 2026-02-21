@@ -10,7 +10,7 @@ export function Header() {
     const nextTheme = resolvedTheme === 'dark' ? 'light' : 'dark'
 
     return (
-        <header className="h-12 border-b flex items-center justify-between px-4 bg-white shrink-0">
+        <header className="h-12 border-b flex items-center justify-between px-4 bg-background shrink-0">
             <span className="font-semibold text-sm">ChatJapan</span>
             <div className="flex items-center gap-2">
                 <Button
@@ -23,7 +23,7 @@ export function Header() {
                 </Button>
                 {session ? (
                     <>
-                        <span className="text-xs text-zinc-500">{session.user?.email}</span>
+                        <span className="text-xs text-muted-foreground">{session.user?.email}</span>
                         <Button variant="ghost" size="sm" onClick={() => signOut()}>
                             ログアウト
                         </Button>
