@@ -77,7 +77,7 @@ areaCodeは市区町村コード(5桁, 例: 13113)または都道府県コード
           return { error: `カテゴリ '${categoryId}' が見つかりません` }
         }
 
-        const decodeValues = (statData: StatData, statsId: string) => {
+        const decodeValues = (statData: StatData | null, statsId: string) => {
           if (!statData) return { statsId, error: 'データなし', values: [] }
           const classMap = EStatClient.buildClassMap(statData.CLASS_INF)
           const tableName = typeof statData.TABLE_INF.TITLE === 'string'
@@ -117,7 +117,7 @@ areaCodeは市区町村コード(5桁, 例: 13113)または都道府県コード
           return Promise.all(
             category.statsIds.map(async (statsId) => {
               const response = await client.fetchStatsData(statsId, code, { limit: 100 })
-              return decodeValues(response.GET_STATS_DATA.STATISTICAL_DATA!, statsId)
+              return decodeValues(response.GET_STATS_DATA.STATISTICAL_DATA ?? null, statsId)
             })
           )
         }

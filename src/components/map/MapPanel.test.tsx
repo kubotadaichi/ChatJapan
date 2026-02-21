@@ -33,10 +33,10 @@ describe("MapPanel", () => {
       <MapPanel
         selectedArea={null}
         onAreaSelect={onSelect}
-        viewLevel="prefecture"
+        selectionMode="prefecture"
         focusedPrefecture={null}
-        onDrillDown={vi.fn()}
-        onDrillUp={vi.fn()}
+        onEnterMunicipalityMode={vi.fn()}
+        onExitMunicipalityMode={vi.fn()}
       />
     )
     expect(screen.getByTestId("map-container")).toBeInTheDocument()
@@ -54,10 +54,10 @@ describe("MapPanel", () => {
       <MapPanel
         selectedArea={area}
         onAreaSelect={onSelect}
-        viewLevel="prefecture"
+        selectionMode="prefecture"
         focusedPrefecture={null}
-        onDrillDown={vi.fn()}
-        onDrillUp={vi.fn()}
+        onEnterMunicipalityMode={vi.fn()}
+        onExitMunicipalityMode={vi.fn()}
       />
     )
     expect(screen.getByText("渋谷区を選択中")).toBeInTheDocument()
@@ -75,68 +75,45 @@ describe("MapPanel", () => {
       <MapPanel
         selectedArea={area}
         onAreaSelect={onSelect}
-        viewLevel="prefecture"
+        selectionMode="prefecture"
         focusedPrefecture={null}
-        onDrillDown={vi.fn()}
-        onDrillUp={vi.fn()}
+        onEnterMunicipalityMode={vi.fn()}
+        onExitMunicipalityMode={vi.fn()}
       />
     )
     expect(screen.getByRole("button", { name: /選択解除/ })).toBeInTheDocument()
   })
 
-  it('shows back button when viewLevel is municipality', () => {
+  it('shows focused prefecture name when selectionMode is municipality', () => {
     render(
       <MapPanel
         selectedArea={null}
         onAreaSelect={vi.fn()}
-        viewLevel="municipality"
+        selectionMode="municipality"
         focusedPrefecture={{
           name: '東京都',
           code: '13',
           prefCode: '13',
           level: 'prefecture',
         }}
-        onDrillDown={vi.fn()}
-        onDrillUp={vi.fn()}
+        onEnterMunicipalityMode={vi.fn()}
+        onExitMunicipalityMode={vi.fn()}
       />
     )
-    expect(screen.getByRole('button', { name: /都道府県に戻る/ })).toBeInTheDocument()
     expect(screen.getByText(/東京都/)).toBeInTheDocument()
   })
 
-  it('does not show back button when viewLevel is prefecture', () => {
+  it('does not show prefecture indicator when selectionMode is prefecture', () => {
     render(
       <MapPanel
         selectedArea={null}
         onAreaSelect={vi.fn()}
-        viewLevel="prefecture"
+        selectionMode="prefecture"
         focusedPrefecture={null}
-        onDrillDown={vi.fn()}
-        onDrillUp={vi.fn()}
+        onEnterMunicipalityMode={vi.fn()}
+        onExitMunicipalityMode={vi.fn()}
       />
     )
-    expect(screen.queryByRole('button', { name: /都道府県に戻る/ })).not.toBeInTheDocument()
-  })
-
-  it('calls onDrillUp when back button is clicked', async () => {
-    const onDrillUp = vi.fn()
-    render(
-      <MapPanel
-        selectedArea={null}
-        onAreaSelect={vi.fn()}
-        viewLevel="municipality"
-        focusedPrefecture={{
-          name: '東京都',
-          code: '13',
-          prefCode: '13',
-          level: 'prefecture',
-        }}
-        onDrillDown={vi.fn()}
-        onDrillUp={onDrillUp}
-      />
-    )
-    const backButton = screen.getByRole('button', { name: /都道府県に戻る/ })
-    backButton.click()
-    expect(onDrillUp).toHaveBeenCalledTimes(1)
+    expect(screen.queryByText(/の市区町村/)).not.toBeInTheDocument()
   })
 })

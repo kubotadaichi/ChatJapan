@@ -8,12 +8,12 @@ import { useMapSelection } from '@/hooks/useMapSelection'
 export default function Home() {
   const {
     selectedArea,
-    viewLevel,
+    selectionMode,
     focusedPrefecture,
     selectArea,
     clearSelection,
-    drillDown,
-    drillUp,
+    enterMunicipalityMode,
+    exitMunicipalityMode,
   } = useMapSelection()
 
   return (
@@ -23,10 +23,10 @@ export default function Home() {
           selectedArea={selectedArea}
           onAreaSelect={selectArea}
           onAreaClear={clearSelection}
-          viewLevel={viewLevel}
+          selectionMode={selectionMode}
           focusedPrefecture={focusedPrefecture}
-          onDrillDown={drillDown}
-          onDrillUp={drillUp}
+          onEnterMunicipalityMode={enterMunicipalityMode}
+          onExitMunicipalityMode={exitMunicipalityMode}
         />
       }
       right={<ChatPanel selectedArea={selectedArea} />}
