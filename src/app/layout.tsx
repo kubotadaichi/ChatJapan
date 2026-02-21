@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import { Inter } from 'next/font/google'
 import { AuthProvider } from '@/components/providers/AuthProvider'
+import { ThemeProvider } from '@/components/providers/ThemeProvider'
 import { Header } from '@/components/layout/Header'
 import './globals.css'
 
@@ -17,14 +18,15 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="ja">
+    <html lang="ja" suppressHydrationWarning>
       <body className={`${inter.className} overflow-hidden flex flex-col h-screen`}>
-        <AuthProvider>
-          <Header />
-          <div className="flex-1 overflow-hidden">{children}</div>
-        </AuthProvider>
+        <ThemeProvider>
+          <AuthProvider>
+            <Header />
+            <div className="flex-1 overflow-hidden">{children}</div>
+          </AuthProvider>
+        </ThemeProvider>
       </body>
     </html>
   )
 }
-
