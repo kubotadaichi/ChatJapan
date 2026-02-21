@@ -1,4 +1,5 @@
-import { streamText } from 'ai'
+import { streamText, stepCountIs, convertToModelMessages } from 'ai'
+import type { UIMessage } from 'ai'
 import { openai } from '@ai-sdk/openai'
 import { anthropic } from '@ai-sdk/anthropic'
 import { createStatisticsTools } from '@/lib/llm/tools'
@@ -15,7 +16,7 @@ function getLLMModel() {
 
 export async function POST(req: Request) {
   const { messages, selectedArea } = (await req.json()) as {
-    messages: Array<{ role: string; content: string }>
+    messages: UIMessage[]
     selectedArea?: SelectedArea
   }
 
@@ -40,10 +41,10 @@ ${areaContext}
 
 回答は日本語で、分かりやすく具体的に提供してください。
 データが古い場合や取得できない場合は、その旨を明示してください。`,
-    messages: messages as Array<{ role: 'user' | 'assistant'; content: string }>,
+    messages: await convertToModelMessages(messages),
     tools,
-    maxSteps: 5,
+    stopWhen: stepCountIs(5),
   })
 
-  return result.toDataStreamResponse()
+  return result.toUIMessageStreamResponse()
 }
