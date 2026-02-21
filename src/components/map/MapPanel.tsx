@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef } from 'react'
 import type { SelectedArea } from '@/lib/types'
 import type { ViewLevel } from '@/hooks/useMapSelection'
 import { Button } from '@/components/ui/button'
@@ -18,12 +18,6 @@ interface MapPanelProps {
   onDrillUp: () => void
 }
 
-interface ContextMenu {
-  x: number
-  y: number
-  area: SelectedArea
-}
-
 export function MapPanel({
   selectedArea,
   onAreaSelect,
@@ -37,9 +31,9 @@ export function MapPanel({
   const mapRef = useRef<unknown>(null)
   const onAreaSelectRef = useRef(onAreaSelect)
   const onDrillDownRef = useRef(onDrillDown)
+  // viewLevelRef: prefecture click/contextmenu handlers need the current viewLevel
   const viewLevelRef = useRef(viewLevel)
   const prevSelectedAreaRef = useRef<SelectedArea | null>(null)
-  const [contextMenu, setContextMenu] = useState<ContextMenu | null>(null)
 
   useEffect(() => {
     onAreaSelectRef.current = onAreaSelect
@@ -53,36 +47,49 @@ export function MapPanel({
     viewLevelRef.current = viewLevel
   }, [viewLevel])
 
-  // コンテキストメニュー外クリックで閉じる
-  useEffect(() => {
-    if (!contextMenu) return
-    const handleClick = () => setContextMenu(null)
-    window.addEventListener('click', handleClick)
-    return () => window.removeEventListener('click', handleClick)
-  }, [contextMenu])
-
   // 選択エリアのフィーチャーステート（ハイライト）
+  // 都道府県・市区町村どちらのレベルも扱う
   useEffect(() => {
     const map = mapRef.current as {
       getSource: (id: string) => unknown
-      setFeatureState: (feature: { source: string; id: string | number }, state: Record<string, boolean>) => void
+      setFeatureState: (
+        feature: { source: string; id: string | number },
+        state: Record<string, boolean>
+      ) => void
     } | null
     if (!map) return
 
+    const PREF_SOURCE = 'prefectures'
     const MUNI_SOURCE = 'municipalities'
 
     // 前の選択を解除
-    if (prevSelectedAreaRef.current?.level === 'municipality') {
+    const prev = prevSelectedAreaRef.current
+    if (prev?.level === 'prefecture') {
+      if (map.getSource(PREF_SOURCE)) {
+        // dataofjapan/land の id プロパティは数値なので Number() で変換
+        map.setFeatureState(
+          { source: PREF_SOURCE, id: Number(prev.code) },
+          { selected: false }
+        )
+      }
+    } else if (prev?.level === 'municipality') {
       if (map.getSource(MUNI_SOURCE)) {
         map.setFeatureState(
-          { source: MUNI_SOURCE, id: prevSelectedAreaRef.current.code },
+          { source: MUNI_SOURCE, id: prev.code },
           { selected: false }
         )
       }
     }
 
     // 新しい選択をハイライト
-    if (selectedArea?.level === 'municipality') {
+    if (selectedArea?.level === 'prefecture') {
+      if (map.getSource(PREF_SOURCE)) {
+        map.setFeatureState(
+          { source: PREF_SOURCE, id: Number(selectedArea.code) },
+          { selected: true }
+        )
+      }
+    } else if (selectedArea?.level === 'municipality') {
       if (map.getSource(MUNI_SOURCE)) {
         map.setFeatureState(
           { source: MUNI_SOURCE, id: selectedArea.code },
@@ -121,6 +128,7 @@ export function MapPanel({
         .then((geojson) => {
           if (map.getSource(MUNI_SOURCE)) return // 既に追加済み
 
+          // promoteId: 'N03_007' でフィーチャーIDを設定（ハイライト用）
           map.addSource(MUNI_SOURCE, { type: 'geojson', data: geojson, promoteId: 'N03_007' })
 
           map.addLayer({
@@ -132,7 +140,7 @@ export function MapPanel({
               'fill-opacity': [
                 'case',
                 ['boolean', ['feature-state', 'selected'], false],
-                0.4,
+                0.5,
                 0.05,
               ],
             },
@@ -145,8 +153,13 @@ export function MapPanel({
             paint: { 'line-color': '#059669', 'line-width': 1 },
           })
 
-          map.on('click', MUNI_FILL, (e: unknown) => {
-            const ev = e as { features?: GeoJSON.Feature[] }
+          // 市区町村 右クリック → 選択（ハイライト）
+          map.on('contextmenu', MUNI_FILL, (e: unknown) => {
+            const ev = e as {
+              features?: GeoJSON.Feature[]
+              originalEvent: MouseEvent
+            }
+            ev.originalEvent.preventDefault()
             if (!ev.features?.[0]) return
             const area = extractAreaFromFeature(ev.features[0], 'municipality')
             if (area) onAreaSelectRef.current(area)
@@ -159,11 +172,11 @@ export function MapPanel({
             map.getCanvas().style.cursor = ''
           })
 
-          // 都道府県にズームイン（zoom 9でより詳細に表示）
+          // 都道府県にズームイン
           map.flyTo({ zoom: 9 })
         })
         .catch(() => {
-          // フェッチ失敗は無視（UIエラー表示は将来的に追加）
+          // フェッチ失敗は無視
         })
     } else {
       // 市区町村レイヤーを削除してズームアウト
@@ -207,7 +220,8 @@ export function MapPanel({
         if (response.ok) {
           const geojson = await response.json()
 
-          map.addSource('prefectures', { type: 'geojson', data: geojson })
+          // promoteId: 'id' で dataofjapan/land の id プロパティをフィーチャーIDに使用
+          map.addSource('prefectures', { type: 'geojson', data: geojson, promoteId: 'id' })
 
           map.addLayer({
             id: 'prefectures-fill',
@@ -231,7 +245,7 @@ export function MapPanel({
             paint: { 'line-color': '#6b7280', 'line-width': 1 },
           })
 
-          // 都道府県クリック → ドリルダウン（市区町村モード中は無効）
+          // 都道府県 左クリック → 県を選択・ハイライト（市区町村モード中は無効）
           map.on('click', 'prefectures-fill', (e) => {
             if (viewLevelRef.current !== 'prefecture') return
             if (!e.features?.[0]) return
@@ -239,24 +253,23 @@ export function MapPanel({
               e.features[0] as unknown as GeoJSON.Feature,
               'prefecture'
             )
-            if (area) onDrillDownRef.current(area)
+            if (area) onAreaSelectRef.current(area)
           })
 
-          // 都道府県右クリック → コンテキストメニュー
+          // 都道府県 右クリック → 市区町村ドリルダウン（市区町村モード中は無効）
           map.on('contextmenu', 'prefectures-fill', (e) => {
             const ev = e as {
               features?: GeoJSON.Feature[]
-              point: { x: number; y: number }
               originalEvent: MouseEvent
             }
             ev.originalEvent.preventDefault()
+            if (viewLevelRef.current !== 'prefecture') return
             if (!ev.features?.[0]) return
             const area = extractAreaFromFeature(
               ev.features[0] as unknown as GeoJSON.Feature,
               'prefecture'
             )
-            if (!area) return
-            setContextMenu({ x: ev.point.x, y: ev.point.y, area })
+            if (area) onDrillDownRef.current(area)
           })
 
           map.on('mouseenter', 'prefectures-fill', () => {
@@ -317,7 +330,7 @@ export function MapPanel({
         </div>
       )}
 
-      {/* 都道府県レベルで選択中（後方互換） */}
+      {/* 都道府県選択中 */}
       {selectedArea && viewLevel === 'prefecture' && (
         <div className="absolute top-3 left-3 z-10 flex items-center gap-2 bg-white rounded-lg shadow px-3 py-2 text-sm font-medium">
           <span>{selectedArea.name}を選択中</span>
@@ -333,25 +346,15 @@ export function MapPanel({
         </div>
       )}
 
-      {/* 右クリックコンテキストメニュー */}
-      {contextMenu && (
-        <div
-          className="absolute z-20 bg-white rounded-lg shadow-lg border border-zinc-200 py-1 min-w-36"
-          style={{ left: contextMenu.x, top: contextMenu.y }}
-          onClick={(e) => e.stopPropagation()}
-        >
-          <div className="px-3 py-1.5 text-xs text-zinc-500 font-medium border-b border-zinc-100">
-            {contextMenu.area.name}
-          </div>
-          <button
-            className="w-full text-left px-3 py-2 text-sm hover:bg-zinc-50 transition-colors"
-            onClick={() => {
-              onDrillDownRef.current(contextMenu.area)
-              setContextMenu(null)
-            }}
-          >
-            市区町村を選択
-          </button>
+      {/* 操作ガイド */}
+      {!selectedArea && viewLevel === 'prefecture' && (
+        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-10 bg-white/90 rounded-lg shadow px-3 py-1.5 text-xs text-zinc-500">
+          左クリック: 県を選択　右クリック: 市区町村を表示
+        </div>
+      )}
+      {viewLevel === 'municipality' && !selectedArea && (
+        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-10 bg-white/90 rounded-lg shadow px-3 py-1.5 text-xs text-zinc-500">
+          右クリック: 市区町村を選択
         </div>
       )}
 
