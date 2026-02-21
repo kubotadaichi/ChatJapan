@@ -2,8 +2,9 @@
 
 import { useEffect, useRef } from 'react'
 import type { SelectedArea } from '@/lib/types'
+import type { ViewLevel } from '@/hooks/useMapSelection'
 import { Button } from '@/components/ui/button'
-import { X } from 'lucide-react'
+import { X, ChevronLeft } from 'lucide-react'
 import { extractAreaFromFeature, PREFECTURE_GEOJSON_URL } from '@/lib/geojson/japan'
 import 'maplibre-gl/dist/maplibre-gl.css'
 
@@ -11,16 +12,113 @@ interface MapPanelProps {
   selectedArea: SelectedArea | null
   onAreaSelect: (area: SelectedArea) => void
   onAreaClear?: () => void
+  viewLevel: ViewLevel
+  focusedPrefecture: SelectedArea | null
+  onDrillDown: (area: SelectedArea) => void
+  onDrillUp: () => void
 }
 
-export function MapPanel({ selectedArea, onAreaSelect, onAreaClear }: MapPanelProps) {
+export function MapPanel({
+  selectedArea,
+  onAreaSelect,
+  onAreaClear,
+  viewLevel,
+  focusedPrefecture,
+  onDrillDown,
+  onDrillUp,
+}: MapPanelProps) {
   const mapContainer = useRef<HTMLDivElement>(null)
   const mapRef = useRef<unknown>(null)
   const onAreaSelectRef = useRef(onAreaSelect)
+  const onDrillDownRef = useRef(onDrillDown)
 
   useEffect(() => {
     onAreaSelectRef.current = onAreaSelect
   }, [onAreaSelect])
+
+  useEffect(() => {
+    onDrillDownRef.current = onDrillDown
+  }, [onDrillDown])
+
+  // 市区町村レイヤーの追加・削除
+  useEffect(() => {
+    const map = mapRef.current as {
+      addSource: (id: string, src: unknown) => void
+      addLayer: (layer: unknown) => void
+      removeLayer: (id: string) => void
+      removeSource: (id: string) => void
+      getLayer: (id: string) => unknown
+      getSource: (id: string) => unknown
+      flyTo: (options: unknown) => void
+      on: (event: string, layer: string, cb: (e: unknown) => void) => void
+      getCanvas: () => { style: { cursor: string } }
+    } | null
+
+    if (!map) return
+
+    const MUNI_SOURCE = 'municipalities'
+    const MUNI_FILL = 'municipalities-fill'
+    const MUNI_OUTLINE = 'municipalities-outline'
+
+    if (viewLevel === 'municipality' && focusedPrefecture) {
+      // 市区町村GeoJSONを取得してレイヤー追加
+      fetch(`/api/geojson/${focusedPrefecture.prefCode}`)
+        .then((r) => r.json())
+        .then((geojson) => {
+          if (map.getSource(MUNI_SOURCE)) return // 既に追加済み
+
+          map.addSource(MUNI_SOURCE, { type: 'geojson', data: geojson })
+
+          map.addLayer({
+            id: MUNI_FILL,
+            type: 'fill',
+            source: MUNI_SOURCE,
+            paint: {
+              'fill-color': '#10b981',
+              'fill-opacity': [
+                'case',
+                ['boolean', ['feature-state', 'selected'], false],
+                0.4,
+                0.05,
+              ],
+            },
+          })
+
+          map.addLayer({
+            id: MUNI_OUTLINE,
+            type: 'line',
+            source: MUNI_SOURCE,
+            paint: { 'line-color': '#059669', 'line-width': 1 },
+          })
+
+          map.on('click', MUNI_FILL, (e: unknown) => {
+            const ev = e as { features?: GeoJSON.Feature[] }
+            if (!ev.features?.[0]) return
+            const area = extractAreaFromFeature(ev.features[0], 'municipality')
+            if (area) onAreaSelectRef.current(area)
+          })
+
+          map.on('mouseenter', MUNI_FILL, () => {
+            map.getCanvas().style.cursor = 'pointer'
+          })
+          map.on('mouseleave', MUNI_FILL, () => {
+            map.getCanvas().style.cursor = ''
+          })
+
+          // 都道府県にズームイン
+          map.flyTo({ zoom: 8 })
+        })
+        .catch(() => {
+          // フェッチ失敗は無視（UIエラー表示は将来的に追加）
+        })
+    } else {
+      // 市区町村レイヤーを削除してズームアウト
+      if (map.getLayer(MUNI_FILL)) map.removeLayer(MUNI_FILL)
+      if (map.getLayer(MUNI_OUTLINE)) map.removeLayer(MUNI_OUTLINE)
+      if (map.getSource(MUNI_SOURCE)) map.removeSource(MUNI_SOURCE)
+      map.flyTo({ zoom: 5, center: [137.0, 36.5] })
+    }
+  }, [viewLevel, focusedPrefecture])
 
   useEffect(() => {
     if (!mapContainer.current || mapRef.current) return
@@ -41,13 +139,7 @@ export function MapPanel({ selectedArea, onAreaSelect, onAreaClear }: MapPanelPr
                 attribution: '© OpenStreetMap contributors',
               },
             },
-            layers: [
-              {
-                id: 'osm-tiles',
-                type: 'raster',
-                source: 'osm-tiles',
-              },
-            ],
+            layers: [{ id: 'osm-tiles', type: 'raster', source: 'osm-tiles' }],
           },
           center: [137.0, 36.5],
           zoom: 5,
@@ -55,7 +147,6 @@ export function MapPanel({ selectedArea, onAreaSelect, onAreaClear }: MapPanelPr
 
         mapRef.current = map
 
-        // load イベントを待ってから GeoJSON を追加（race condition 回避）
         await new Promise<void>((resolve) => map.once('load', resolve))
 
         const response = await fetch(PREFECTURE_GEOJSON_URL)
@@ -86,22 +177,25 @@ export function MapPanel({ selectedArea, onAreaSelect, onAreaClear }: MapPanelPr
             paint: { 'line-color': '#6b7280', 'line-width': 1 },
           })
 
+          // 都道府県クリック → ドリルダウン
           map.on('click', 'prefectures-fill', (e) => {
             if (!e.features?.[0]) return
-            const area = extractAreaFromFeature(e.features[0] as unknown as GeoJSON.Feature, 'prefecture')
-            if (area) onAreaSelectRef.current(area)
+            const area = extractAreaFromFeature(
+              e.features[0] as unknown as GeoJSON.Feature,
+              'prefecture'
+            )
+            if (area) onDrillDownRef.current(area)
           })
 
           map.on('mouseenter', 'prefectures-fill', () => {
             map.getCanvas().style.cursor = 'pointer'
           })
-
           map.on('mouseleave', 'prefectures-fill', () => {
             map.getCanvas().style.cursor = ''
           })
         }
       } catch {
-        // Map initialization failed (e.g. in test environment or no WebGL)
+        // WebGL未対応など
       }
     }
 
@@ -109,7 +203,7 @@ export function MapPanel({ selectedArea, onAreaSelect, onAreaClear }: MapPanelPr
 
     return () => {
       if (mapRef.current) {
-        ; (mapRef.current as { remove: () => void }).remove()
+        ;(mapRef.current as { remove: () => void }).remove()
         mapRef.current = null
       }
     }
@@ -117,7 +211,42 @@ export function MapPanel({ selectedArea, onAreaSelect, onAreaClear }: MapPanelPr
 
   return (
     <div className="relative h-full">
-      {selectedArea && (
+      {/* ドリルダウン中: 戻るボタン + 都道府県名 */}
+      {viewLevel === 'municipality' && focusedPrefecture && (
+        <div className="absolute top-3 left-3 z-10 flex items-center gap-2 bg-white rounded-lg shadow px-3 py-2 text-sm font-medium">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onDrillUp}
+            className="h-6 px-2 gap-1"
+            aria-label="都道府県に戻る"
+          >
+            <ChevronLeft className="h-3 w-3" />
+            都道府県に戻る
+          </Button>
+          <span className="text-zinc-400">|</span>
+          <span>{focusedPrefecture.name}</span>
+        </div>
+      )}
+
+      {/* 市区町村選択中: 選択エリア名 + 解除ボタン */}
+      {selectedArea && viewLevel === 'municipality' && (
+        <div className="absolute top-14 left-3 z-10 flex items-center gap-2 bg-white rounded-lg shadow px-3 py-2 text-sm font-medium">
+          <span>{selectedArea.name}を選択中</span>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onAreaClear}
+            className="h-5 w-5 p-0"
+            aria-label="選択解除"
+          >
+            <X className="h-3 w-3" />
+          </Button>
+        </div>
+      )}
+
+      {/* 都道府県レベルで選択中（後方互換） */}
+      {selectedArea && viewLevel === 'prefecture' && (
         <div className="absolute top-3 left-3 z-10 flex items-center gap-2 bg-white rounded-lg shadow px-3 py-2 text-sm font-medium">
           <span>{selectedArea.name}を選択中</span>
           <Button
@@ -131,6 +260,7 @@ export function MapPanel({ selectedArea, onAreaSelect, onAreaClear }: MapPanelPr
           </Button>
         </div>
       )}
+
       <div
         ref={mapContainer}
         data-testid="map-container"
