@@ -9,9 +9,10 @@ import { ChatInput } from './ChatInput'
 
 interface ChatPanelProps {
   selectedArea: SelectedArea | null
+  onAreaClear: () => void
 }
 
-export function ChatPanel({ selectedArea }: ChatPanelProps) {
+export function ChatPanel({ selectedArea, onAreaClear }: ChatPanelProps) {
   const selectedAreaRef = useRef(selectedArea)
   selectedAreaRef.current = selectedArea
 
@@ -37,18 +38,18 @@ export function ChatPanel({ selectedArea }: ChatPanelProps) {
 
   return (
     <div className="flex flex-col h-full">
-      <div className="px-4 py-3 border-b bg-background">
-        <h1 className="font-semibold text-sm text-foreground">ChatJapan</h1>
-        {selectedArea && (
-          <p className="text-xs text-muted-foreground mt-0.5">
-            🗾 {selectedArea.name}
-          </p>
-        )}
+      <div
+        data-testid="chat-panel-header"
+        className="px-5 py-3 border-b border-border/60 bg-background bg-background/80 backdrop-blur"
+      >
+        <h1 className="font-medium text-sm text-foreground tracking-tight">ChatJapan</h1>
       </div>
 
       <MessageList messages={messages} />
 
       <ChatInput
+        selectedArea={selectedArea}
+        onAreaClear={onAreaClear}
         input={input}
         onChange={(e) => setInput(e.target.value)}
         onSubmit={handleSubmit}

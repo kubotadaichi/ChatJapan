@@ -3,8 +3,6 @@
 import { useEffect, useRef, useState } from 'react'
 import type { SelectedArea } from '@/lib/types'
 import type { SelectionMode } from '@/hooks/useMapSelection'
-import { Button } from '@/components/ui/button'
-import { X } from 'lucide-react'
 import { extractAreaFromFeature, PREFECTURE_GEOJSON_URL } from '@/lib/geojson/japan'
 import 'maplibre-gl/dist/maplibre-gl.css'
 
@@ -17,7 +15,6 @@ interface ContextMenu {
 interface MapPanelProps {
   selectedArea: SelectedArea | null
   onAreaSelect: (area: SelectedArea) => void
-  onAreaClear?: () => void
   selectionMode: SelectionMode
   focusedPrefecture: SelectedArea | null
   onEnterMunicipalityMode: (prefecture: SelectedArea) => void
@@ -27,7 +24,6 @@ interface MapPanelProps {
 export function MapPanel({
   selectedArea,
   onAreaSelect,
-  onAreaClear,
   selectionMode,
   focusedPrefecture,
   onEnterMunicipalityMode,
@@ -306,24 +302,6 @@ export function MapPanel({
       {selectionMode === 'municipality' && focusedPrefecture && (
         <div className="absolute top-3 left-3 z-10 bg-card/90 rounded-lg shadow px-3 py-1.5 text-xs text-muted-foreground">
           {focusedPrefecture.name}の市区町村
-        </div>
-      )}
-
-      {/* 選択中エリア名 + 解除ボタン */}
-      {selectedArea && (
-        <div
-          className={`absolute ${selectionMode === 'municipality' ? 'top-12' : 'top-3'} left-3 z-10 flex items-center gap-2 bg-card rounded-lg shadow px-3 py-2 text-sm font-medium`}
-        >
-          <span>{selectedArea.name}を選択中</span>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={onAreaClear}
-            className="h-5 w-5 p-0"
-            aria-label="選択解除"
-          >
-            <X className="h-3 w-3" />
-          </Button>
         </div>
       )}
 

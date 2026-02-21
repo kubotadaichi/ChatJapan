@@ -42,7 +42,7 @@ describe("MapPanel", () => {
     expect(screen.getByTestId("map-container")).toBeInTheDocument()
   })
 
-  it("shows selected area name when area is selected", () => {
+  it("does not show selected area overlay when area is selected", () => {
     const area: SelectedArea = {
       name: "渋谷区",
       code: "13113",
@@ -60,10 +60,10 @@ describe("MapPanel", () => {
         onExitMunicipalityMode={vi.fn()}
       />
     )
-    expect(screen.getByText("渋谷区を選択中")).toBeInTheDocument()
+    expect(screen.queryByText("渋谷区を選択中")).not.toBeInTheDocument()
   })
 
-  it("shows clear button when area is selected", () => {
+  it("does not show clear button when area is selected", () => {
     const area: SelectedArea = {
       name: "渋谷区",
       code: "13113",
@@ -81,7 +81,7 @@ describe("MapPanel", () => {
         onExitMunicipalityMode={vi.fn()}
       />
     )
-    expect(screen.getByRole("button", { name: /選択解除/ })).toBeInTheDocument()
+    expect(screen.queryByRole("button", { name: /選択解除/ })).not.toBeInTheDocument()
   })
 
   it('shows focused prefecture name when selectionMode is municipality', () => {
@@ -117,7 +117,7 @@ describe("MapPanel", () => {
     expect(screen.queryByText(/の市区町村/)).not.toBeInTheDocument()
   })
 
-  it('uses theme token class for selected-area overlay', () => {
+  it('does not render selected-area overlay even when selected', () => {
     const area = { name: '渋谷区', code: '13113', prefCode: '13', level: 'municipality' } as const
     render(
       <MapPanel
@@ -129,6 +129,6 @@ describe("MapPanel", () => {
         onExitMunicipalityMode={vi.fn()}
       />
     )
-    expect(screen.getByText('渋谷区を選択中').closest('div')).toHaveClass('bg-card')
+    expect(screen.queryByText('渋谷区を選択中')).not.toBeInTheDocument()
   })
 })

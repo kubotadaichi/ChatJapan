@@ -22,14 +22,13 @@ export default function Home() {
         <MapPanel
           selectedArea={selectedArea}
           onAreaSelect={selectArea}
-          onAreaClear={clearSelection}
           selectionMode={selectionMode}
           focusedPrefecture={focusedPrefecture}
           onEnterMunicipalityMode={enterMunicipalityMode}
           onExitMunicipalityMode={exitMunicipalityMode}
         />
       }
-      right={<ChatPanel selectedArea={selectedArea} />}
+      right={<ChatPanel selectedArea={selectedArea} onAreaClear={clearSelection} />}
     />
   )
 }
