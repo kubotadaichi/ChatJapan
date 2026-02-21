@@ -3,6 +3,7 @@
 import { useState, useRef, useMemo, FormEvent, useEffect } from 'react'
 import { useChat } from '@ai-sdk/react'
 import { DefaultChatTransport } from 'ai'
+import type { UIMessage } from 'ai'
 import type { SelectedArea } from '@/lib/types'
 import { MessageList } from './MessageList'
 import { ChatInput } from './ChatInput'
@@ -11,11 +12,39 @@ import type { CategoryCoverageItem } from './CategoryCoverageChips'
 interface ChatPanelProps {
   selectedArea: SelectedArea | null
   onAreaClear: () => void
+  sessionId: string | null
+  onSessionCreated: (id: string) => void
+  onTitleGenerated: () => void
+  isMapOpen?: boolean
+  onToggleMap?: () => void
 }
 
-export function ChatPanel({ selectedArea, onAreaClear }: ChatPanelProps) {
+interface SessionMessagePayload {
+  id: string
+  role: string
+  content: string
+}
+
+function extractTextContent(message: UIMessage): string {
+  return message.parts
+    .filter((p) => p.type === 'text')
+    .map((p) => ('text' in p ? p.text : ''))
+    .join('')
+}
+
+export function ChatPanel({
+  selectedArea,
+  onAreaClear,
+  sessionId,
+  onSessionCreated,
+  onTitleGenerated,
+  isMapOpen = false,
+  onToggleMap,
+}: ChatPanelProps) {
   const selectedAreaRef = useRef(selectedArea)
   selectedAreaRef.current = selectedArea
+  const sessionIdRef = useRef(sessionId)
+  sessionIdRef.current = sessionId
   const [categories, setCategories] = useState<CategoryCoverageItem[]>([])
 
   const transport = useMemo(
@@ -27,9 +56,63 @@ export function ChatPanel({ selectedArea, onAreaClear }: ChatPanelProps) {
     []
   )
 
-  const { messages, sendMessage, status } = useChat({ transport })
+  const { messages, setMessages, sendMessage, status } = useChat({ transport })
   const [input, setInput] = useState('')
   const isLoading = status === 'submitted' || status === 'streaming'
+
+  const prevStatus = useRef(status)
+  const isSavingRef = useRef(false)
+
+  useEffect(() => {
+    const wasStreaming = prevStatus.current === 'streaming'
+    const isReady = status === 'ready'
+    prevStatus.current = status
+
+    if (!wasStreaming || !isReady) return
+    if (isSavingRef.current) return
+
+    const currentSessionId = sessionIdRef.current
+    if (!currentSessionId) return
+    if (messages.length < 2) return
+
+    const lastUserMsg = [...messages].reverse().find((m) => m.role === 'user')
+    const lastAiMsg = [...messages].reverse().find((m) => m.role === 'assistant')
+    if (!lastUserMsg || !lastAiMsg) return
+
+    isSavingRef.current = true
+
+    const area = selectedAreaRef.current
+    const messagesToSave = [
+      {
+        role: 'user',
+        content: extractTextContent(lastUserMsg),
+        areaCode: area?.code ?? null,
+        areaName: area?.name ?? null,
+      },
+      {
+        role: 'assistant',
+        content: extractTextContent(lastAiMsg),
+        areaCode: area?.code ?? null,
+        areaName: area?.name ?? null,
+      },
+    ]
+
+    fetch(`/api/sessions/${currentSessionId}/messages`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ messages: messagesToSave }),
+    })
+      .then(() => {
+        if (messages.filter((m) => m.role === 'assistant').length === 1) {
+          return generateTitle(currentSessionId, messagesToSave[0].content, messagesToSave[1].content).then(
+            onTitleGenerated
+          )
+        }
+      })
+      .finally(() => {
+        isSavingRef.current = false
+      })
+  }, [messages, onTitleGenerated, status])
 
   useEffect(() => {
     let cancelled = false
@@ -55,22 +138,69 @@ export function ChatPanel({ selectedArea, onAreaClear }: ChatPanelProps) {
     }
   }, [])
 
-  const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     if (!input.trim()) return
+
+    if (!sessionIdRef.current) {
+      const area = selectedAreaRef.current
+      try {
+        const res = await fetch('/api/sessions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ areaName: area?.name, areaCode: area?.code }),
+        })
+        if (res.ok) {
+          const body = (await res.json()) as { session: { id: string } }
+          onSessionCreated(body.session.id)
+        }
+      } catch {
+        // continue without saving
+      }
+    }
+
     sendMessage({ text: input })
     setInput('')
   }
 
+  const prevSessionId = useRef<string | null>(null)
+  useEffect(() => {
+    let cancelled = false
+
+    const loadSessionMessages = async (id: string) => {
+      try {
+        const res = await fetch(`/api/sessions/${id}`)
+        if (!res.ok) return
+        const body = (await res.json()) as { session?: { messages?: SessionMessagePayload[] } }
+        const loaded = (body.session?.messages ?? []).map((m) => ({
+          id: m.id,
+          role: m.role === 'assistant' ? 'assistant' : 'user',
+          parts: [{ type: 'text', text: m.content }],
+        })) as UIMessage[]
+        if (!cancelled) {
+          setMessages(loaded)
+        }
+      } catch {
+        // ignore
+      }
+    }
+
+    if (prevSessionId.current !== sessionId) {
+      prevSessionId.current = sessionId
+      if (sessionId === null) {
+        setMessages([])
+      } else {
+        void loadSessionMessages(sessionId)
+      }
+    }
+
+    return () => {
+      cancelled = true
+    }
+  }, [sessionId, setMessages])
+
   return (
     <div className="flex flex-col h-full">
-      <div
-        data-testid="chat-panel-header"
-        className="px-5 py-3 border-b border-border/60 bg-background bg-background/80 backdrop-blur"
-      >
-        <h1 className="font-medium text-sm text-foreground tracking-tight">ChatJapan</h1>
-      </div>
-
       <MessageList messages={messages} />
 
       <ChatInput
@@ -81,7 +211,24 @@ export function ChatPanel({ selectedArea, onAreaClear }: ChatPanelProps) {
         onChange={(e) => setInput(e.target.value)}
         onSubmit={handleSubmit}
         isLoading={isLoading}
+        isMapOpen={isMapOpen}
+        onToggleMap={onToggleMap}
       />
     </div>
   )
+}
+
+async function generateTitle(sessionId: string, userMsg: string, aiMsg: string): Promise<void> {
+  try {
+    const res = await fetch('/api/sessions/generate-title', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sessionId, userMsg, aiMsg }),
+    })
+    if (!res.ok) {
+      throw new Error('failed')
+    }
+  } catch {
+    // ignore
+  }
 }
