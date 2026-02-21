@@ -5,6 +5,7 @@ import type { SelectedArea } from '@/lib/types'
 import { Button } from '@/components/ui/button'
 import { X } from 'lucide-react'
 import { extractAreaFromFeature, PREFECTURE_GEOJSON_URL } from '@/lib/geojson/japan'
+import 'maplibre-gl/dist/maplibre-gl.css'
 
 interface MapPanelProps {
   selectedArea: SelectedArea | null
@@ -27,7 +28,6 @@ export function MapPanel({ selectedArea, onAreaSelect, onAreaClear }: MapPanelPr
     const initMap = async () => {
       try {
         const maplibre = (await import('maplibre-gl')).default
-        await import('maplibre-gl/dist/maplibre-gl.css')
 
         const map = new maplibre.Map({
           container: mapContainer.current!,
@@ -55,48 +55,49 @@ export function MapPanel({ selectedArea, onAreaSelect, onAreaClear }: MapPanelPr
 
         mapRef.current = map
 
+        // load イベントを待ってから GeoJSON を追加（race condition 回避）
+        await new Promise<void>((resolve) => map.once('load', resolve))
+
         const response = await fetch(PREFECTURE_GEOJSON_URL)
         if (response.ok) {
           const geojson = await response.json()
 
-          map.on('load', () => {
-            map.addSource('prefectures', { type: 'geojson', data: geojson })
+          map.addSource('prefectures', { type: 'geojson', data: geojson })
 
-            map.addLayer({
-              id: 'prefectures-fill',
-              type: 'fill',
-              source: 'prefectures',
-              paint: {
-                'fill-color': '#3b82f6',
-                'fill-opacity': [
-                  'case',
-                  ['boolean', ['feature-state', 'selected'], false],
-                  0.3,
-                  0,
-                ],
-              },
-            })
+          map.addLayer({
+            id: 'prefectures-fill',
+            type: 'fill',
+            source: 'prefectures',
+            paint: {
+              'fill-color': '#3b82f6',
+              'fill-opacity': [
+                'case',
+                ['boolean', ['feature-state', 'selected'], false],
+                0.3,
+                0,
+              ],
+            },
+          })
 
-            map.addLayer({
-              id: 'prefectures-outline',
-              type: 'line',
-              source: 'prefectures',
-              paint: { 'line-color': '#6b7280', 'line-width': 1 },
-            })
+          map.addLayer({
+            id: 'prefectures-outline',
+            type: 'line',
+            source: 'prefectures',
+            paint: { 'line-color': '#6b7280', 'line-width': 1 },
+          })
 
-            map.on('click', 'prefectures-fill', (e) => {
-              if (!e.features?.[0]) return
-              const area = extractAreaFromFeature(e.features[0] as unknown as GeoJSON.Feature, 'prefecture')
-              if (area) onAreaSelectRef.current(area)
-            })
+          map.on('click', 'prefectures-fill', (e) => {
+            if (!e.features?.[0]) return
+            const area = extractAreaFromFeature(e.features[0] as unknown as GeoJSON.Feature, 'prefecture')
+            if (area) onAreaSelectRef.current(area)
+          })
 
-            map.on('mouseenter', 'prefectures-fill', () => {
-              map.getCanvas().style.cursor = 'pointer'
-            })
+          map.on('mouseenter', 'prefectures-fill', () => {
+            map.getCanvas().style.cursor = 'pointer'
+          })
 
-            map.on('mouseleave', 'prefectures-fill', () => {
-              map.getCanvas().style.cursor = ''
-            })
+          map.on('mouseleave', 'prefectures-fill', () => {
+            map.getCanvas().style.cursor = ''
           })
         }
       } catch {
@@ -108,7 +109,7 @@ export function MapPanel({ selectedArea, onAreaSelect, onAreaClear }: MapPanelPr
 
     return () => {
       if (mapRef.current) {
-        ;(mapRef.current as { remove: () => void }).remove()
+        ; (mapRef.current as { remove: () => void }).remove()
         mapRef.current = null
       }
     }
