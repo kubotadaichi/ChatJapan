@@ -6,7 +6,15 @@ import { ChatPanel } from '@/components/chat/ChatPanel'
 import { useMapSelection } from '@/hooks/useMapSelection'
 
 export default function Home() {
-  const { selectedArea, selectArea, clearSelection } = useMapSelection()
+  const {
+    selectedArea,
+    selectionMode,
+    focusedPrefecture,
+    selectArea,
+    clearSelection,
+    enterMunicipalityMode,
+    exitMunicipalityMode,
+  } = useMapSelection()
 
   return (
     <SplitLayout
@@ -15,6 +23,10 @@ export default function Home() {
           selectedArea={selectedArea}
           onAreaSelect={selectArea}
           onAreaClear={clearSelection}
+          selectionMode={selectionMode}
+          focusedPrefecture={focusedPrefecture}
+          onEnterMunicipalityMode={enterMunicipalityMode}
+          onExitMunicipalityMode={exitMunicipalityMode}
         />
       }
       right={<ChatPanel selectedArea={selectedArea} />}

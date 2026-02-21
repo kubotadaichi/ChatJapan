@@ -15,6 +15,7 @@
     "@ai-sdk/anthropic": "^3.0.46",
     "@ai-sdk/openai": "^3.0.30",
     "@ai-sdk/react": "^3.0.99",
+    "@vercel/kv": "^3.0.0",
     "ai": "^6.0.97",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
