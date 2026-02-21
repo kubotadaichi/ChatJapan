@@ -1,6 +1,6 @@
 {
   "framework": "nextjs",
-  "regions": ["nrt1"],
+  "regions": ["hnd1"],
   "env": {
     "ESTAT_API_KEY": "@estat-api-key",
     "OPENAI_API_KEY": "@openai-api-key",
