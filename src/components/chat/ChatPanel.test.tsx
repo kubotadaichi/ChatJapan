@@ -1,6 +1,6 @@
-import { render, screen, within } from '@testing-library/react'
+import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { describe, it, expect, vi } from 'vitest'
+import { afterEach, beforeEach, describe, it, expect, vi } from 'vitest'
 import { ChatPanel } from './ChatPanel'
 
 vi.mock('@ai-sdk/react', () => ({
@@ -13,6 +13,23 @@ vi.mock('@ai-sdk/react', () => ({
 }))
 
 describe('ChatPanel', () => {
+  beforeEach(() => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          categories: [],
+        }),
+      })
+    )
+  })
+
+  afterEach(() => {
+    vi.restoreAllMocks()
+    vi.unstubAllGlobals()
+  })
+
   it('renders chat input', () => {
     render(<ChatPanel selectedArea={null} onAreaClear={vi.fn()} />)
     expect(screen.getByPlaceholderText(/メッセージを入力/)).toBeInTheDocument()
@@ -69,5 +86,42 @@ describe('ChatPanel', () => {
 
     await user.click(screen.getByRole('button', { name: /選択解除/ }))
     expect(onAreaClear).toHaveBeenCalledTimes(1)
+  })
+
+  it('shows categories strip above input when API succeeds', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          categories: [
+            {
+              id: 'population',
+              name: '人口統計',
+              description: '人口関連',
+              coverage: 'municipality',
+              coverageNote: null,
+            },
+          ],
+        }),
+      })
+    )
+
+    render(<ChatPanel selectedArea={null} onAreaClear={vi.fn()} />)
+
+    const strip = await screen.findByTestId('category-coverage-strip')
+    expect(strip).toHaveTextContent('人口統計')
+    expect(strip).toHaveTextContent('市区町村')
+  })
+
+  it('keeps chat input usable when categories API fails', async () => {
+    const fetchMock = vi.fn().mockRejectedValue(new Error('network error'))
+    vi.stubGlobal('fetch', fetchMock)
+
+    render(<ChatPanel selectedArea={null} onAreaClear={vi.fn()} />)
+
+    expect(screen.getByPlaceholderText(/メッセージを入力/)).toBeInTheDocument()
+    await waitFor(() => expect(fetchMock).toHaveBeenCalled())
+    expect(screen.queryByTestId('category-coverage-strip')).not.toBeInTheDocument()
   })
 })

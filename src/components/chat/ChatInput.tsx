@@ -3,9 +3,12 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { MapPinned, Send, X } from 'lucide-react'
 import type { SelectedArea } from '@/lib/types'
+import { CategoryCoverageChips } from './CategoryCoverageChips'
+import type { CategoryCoverageItem } from './CategoryCoverageChips'
 
 interface ChatInputProps {
   selectedArea: SelectedArea | null
+  categories: CategoryCoverageItem[]
   onAreaClear: () => void
   input: string
   onChange: (e: React.ChangeEvent<HTMLInputElement>) => void
@@ -13,10 +16,11 @@ interface ChatInputProps {
   isLoading: boolean
 }
 
-export function ChatInput({ selectedArea, onAreaClear, input, onChange, onSubmit, isLoading }: ChatInputProps) {
+export function ChatInput({ selectedArea, categories, onAreaClear, input, onChange, onSubmit, isLoading }: ChatInputProps) {
   return (
     <form onSubmit={onSubmit} className="border-t border-border/60 bg-background/85 backdrop-blur px-3 py-3">
       <div className="mx-auto w-full max-w-3xl rounded-2xl border border-border bg-card p-2 shadow-sm">
+        <CategoryCoverageChips categories={categories} />
         {selectedArea && (
           <div
             data-testid="selected-area-chip"

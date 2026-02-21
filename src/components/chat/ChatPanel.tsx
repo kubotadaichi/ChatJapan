@@ -1,11 +1,12 @@
 'use client'
 
-import { useState, useRef, useMemo, FormEvent } from 'react'
+import { useState, useRef, useMemo, FormEvent, useEffect } from 'react'
 import { useChat } from '@ai-sdk/react'
 import { DefaultChatTransport } from 'ai'
 import type { SelectedArea } from '@/lib/types'
 import { MessageList } from './MessageList'
 import { ChatInput } from './ChatInput'
+import type { CategoryCoverageItem } from './CategoryCoverageChips'
 
 interface ChatPanelProps {
   selectedArea: SelectedArea | null
@@ -15,6 +16,7 @@ interface ChatPanelProps {
 export function ChatPanel({ selectedArea, onAreaClear }: ChatPanelProps) {
   const selectedAreaRef = useRef(selectedArea)
   selectedAreaRef.current = selectedArea
+  const [categories, setCategories] = useState<CategoryCoverageItem[]>([])
 
   const transport = useMemo(
     () =>
@@ -28,6 +30,30 @@ export function ChatPanel({ selectedArea, onAreaClear }: ChatPanelProps) {
   const { messages, sendMessage, status } = useChat({ transport })
   const [input, setInput] = useState('')
   const isLoading = status === 'submitted' || status === 'streaming'
+
+  useEffect(() => {
+    let cancelled = false
+
+    const fetchCategories = async () => {
+      try {
+        const res = await fetch('/api/statistics/categories')
+        if (!res.ok) throw new Error(`Failed to fetch categories: ${res.status}`)
+        const body = (await res.json()) as { categories?: CategoryCoverageItem[] }
+        if (!cancelled && Array.isArray(body.categories) && body.categories.length > 0) {
+          setCategories(body.categories)
+        }
+      } catch {
+        if (!cancelled) {
+          setCategories((current) => (current.length === 0 ? current : []))
+        }
+      }
+    }
+
+    void fetchCategories()
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault()
@@ -49,6 +75,7 @@ export function ChatPanel({ selectedArea, onAreaClear }: ChatPanelProps) {
 
       <ChatInput
         selectedArea={selectedArea}
+        categories={categories}
         onAreaClear={onAreaClear}
         input={input}
         onChange={(e) => setInput(e.target.value)}
