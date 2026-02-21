@@ -10,7 +10,7 @@ export function createStatisticsTools(estatApiKey: string) {
     listStatisticsCategories: tool({
       description:
         '利用可能な統計カテゴリの一覧を返します。ユーザーの質問に最適なカテゴリを選択するために呼び出してください。',
-      parameters: z.object({}),
+      inputSchema: z.object({}),
       execute: async () => {
         return {
           categories: STATISTICS_CATEGORIES.map((c) => ({
@@ -25,7 +25,7 @@ export function createStatisticsTools(estatApiKey: string) {
     fetchStatistics: tool({
       description:
         '指定したエリアの統計データをe-Stat APIから取得します。areaCodeは市区町村コード(5桁)または都道府県コード(2桁)を使用してください。',
-      parameters: z.object({
+      inputSchema: z.object({
         categoryId: z.string().describe('統計カテゴリID (listStatisticsCategoriesで取得)'),
         areaCode: z.string().describe('市区町村コード(例: 13113)または都道府県コード(例: 13)'),
         prefCode: z.string().describe('都道府県コード2桁 (例: 13)'),
@@ -64,7 +64,7 @@ export function createStatisticsTools(estatApiKey: string) {
 
     getAreaInfo: tool({
       description: 'エリアの基本情報（面積、隣接エリアなど）を返します。',
-      parameters: z.object({
+      inputSchema: z.object({
         areaCode: z.string().describe('市区町村コードまたは都道府県コード'),
         areaName: z.string().describe('エリア名'),
       }),
