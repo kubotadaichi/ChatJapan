@@ -1,11 +1,15 @@
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { ChatPanel } from './ChatPanel'
+
+const { setMessagesMock } = vi.hoisted(() => ({
+  setMessagesMock: vi.fn(),
+}))
 
 vi.mock('@ai-sdk/react', () => ({
   useChat: vi.fn().mockReturnValue({
     messages: [],
-    setMessages: vi.fn(),
+    setMessages: setMessagesMock,
     sendMessage: vi.fn(),
     status: 'ready',
   }),
@@ -33,6 +37,7 @@ describe('ChatPanel', () => {
   afterEach(() => {
     vi.restoreAllMocks()
     vi.unstubAllGlobals()
+    setMessagesMock.mockReset()
   })
 
   it('renders chat input', () => {
@@ -58,5 +63,44 @@ describe('ChatPanel', () => {
   it('shows placeholder message when no messages', () => {
     render(<ChatPanel {...defaultProps} />)
     expect(screen.getByText(/地図でエリアを選択/)).toBeInTheDocument()
+  })
+
+  it('renders map toggle button and calls callback', () => {
+    const onToggleMap = vi.fn()
+    render(<ChatPanel {...defaultProps} onToggleMap={onToggleMap} isMapOpen={false} />)
+    fireEvent.click(screen.getByRole('button', { name: /地図を開く/ }))
+    expect(onToggleMap).toHaveBeenCalledTimes(1)
+  })
+
+  it('loads messages when session is selected', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn()
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({ categories: [] }),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({
+            session: {
+              messages: [{ id: 'm1', role: 'user', content: 'こんにちは' }],
+            },
+          }),
+        })
+    )
+
+    render(<ChatPanel {...defaultProps} sessionId="s1" />)
+
+    await waitFor(() =>
+      expect(setMessagesMock).toHaveBeenCalledWith(
+        expect.arrayContaining([
+          expect.objectContaining({
+            id: 'm1',
+            role: 'user',
+          }),
+        ])
+      )
+    )
   })
 })

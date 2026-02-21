@@ -35,4 +35,16 @@ describe('ThreeColumnLayout', () => {
     expect(screen.getByTestId('center')).toBeInTheDocument()
     expect(screen.getByTestId('right')).toBeInTheDocument()
   })
+
+  it('renders sidebar and right when center is omitted', () => {
+    render(
+      <ThreeColumnLayout
+        sidebar={<div data-testid="sidebar">sidebar</div>}
+        right={<div data-testid="right">right</div>}
+      />
+    )
+    expect(screen.getByTestId('sidebar')).toBeInTheDocument()
+    expect(screen.queryByTestId('center')).not.toBeInTheDocument()
+    expect(screen.getByTestId('right')).toBeInTheDocument()
+  })
 })

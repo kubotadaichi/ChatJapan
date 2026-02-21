@@ -1,5 +1,6 @@
 import { Plus, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import type { ReactNode } from 'react'
 
 interface SessionItem {
   id: string
@@ -14,6 +15,7 @@ interface SessionSidebarProps {
   onNewSession: () => void
   onSelectSession: (id: string) => void
   onDeleteSession: (id: string) => void
+  headerAction?: ReactNode
 }
 
 export function SessionSidebar({
@@ -22,20 +24,24 @@ export function SessionSidebar({
   onNewSession,
   onSelectSession,
   onDeleteSession,
+  headerAction,
 }: SessionSidebarProps) {
   return (
     <div className="flex h-full flex-col border-r border-border bg-muted/30">
       <div className="border-b border-border px-3 py-3">
-        <Button
-          variant="outline"
-          size="sm"
-          className="w-full gap-1.5 text-xs"
-          onClick={onNewSession}
-          aria-label="新しい会話"
-        >
-          <Plus className="h-3.5 w-3.5" />
-          新しい会話
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            className="flex-1 gap-1.5 text-xs"
+            onClick={onNewSession}
+            aria-label="新しい会話"
+          >
+            <Plus className="h-3.5 w-3.5" />
+            新しい会話
+          </Button>
+          {headerAction}
+        </div>
       </div>
 
       <div className="flex-1 overflow-y-auto py-2">

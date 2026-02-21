@@ -15,6 +15,14 @@ interface ChatPanelProps {
   sessionId: string | null
   onSessionCreated: (id: string) => void
   onTitleGenerated: () => void
+  isMapOpen?: boolean
+  onToggleMap?: () => void
+}
+
+interface SessionMessagePayload {
+  id: string
+  role: string
+  content: string
 }
 
 function extractTextContent(message: UIMessage): string {
@@ -30,6 +38,8 @@ export function ChatPanel({
   sessionId,
   onSessionCreated,
   onTitleGenerated,
+  isMapOpen = false,
+  onToggleMap,
 }: ChatPanelProps) {
   const selectedAreaRef = useRef(selectedArea)
   selectedAreaRef.current = selectedArea
@@ -153,25 +163,44 @@ export function ChatPanel({
     setInput('')
   }
 
-  const prevSessionId = useRef(sessionId)
+  const prevSessionId = useRef<string | null>(null)
   useEffect(() => {
+    let cancelled = false
+
+    const loadSessionMessages = async (id: string) => {
+      try {
+        const res = await fetch(`/api/sessions/${id}`)
+        if (!res.ok) return
+        const body = (await res.json()) as { session?: { messages?: SessionMessagePayload[] } }
+        const loaded = (body.session?.messages ?? []).map((m) => ({
+          id: m.id,
+          role: m.role === 'assistant' ? 'assistant' : 'user',
+          parts: [{ type: 'text', text: m.content }],
+        })) as UIMessage[]
+        if (!cancelled) {
+          setMessages(loaded)
+        }
+      } catch {
+        // ignore
+      }
+    }
+
     if (prevSessionId.current !== sessionId) {
       prevSessionId.current = sessionId
       if (sessionId === null) {
         setMessages([])
+      } else {
+        void loadSessionMessages(sessionId)
       }
+    }
+
+    return () => {
+      cancelled = true
     }
   }, [sessionId, setMessages])
 
   return (
     <div className="flex flex-col h-full">
-      <div
-        data-testid="chat-panel-header"
-        className="px-5 py-3 border-b border-border/60 bg-background bg-background/80 backdrop-blur"
-      >
-        <h1 className="font-medium text-sm text-foreground tracking-tight">ChatJapan</h1>
-      </div>
-
       <MessageList messages={messages} />
 
       <ChatInput
@@ -182,6 +211,8 @@ export function ChatPanel({
         onChange={(e) => setInput(e.target.value)}
         onSubmit={handleSubmit}
         isLoading={isLoading}
+        isMapOpen={isMapOpen}
+        onToggleMap={onToggleMap}
       />
     </div>
   )

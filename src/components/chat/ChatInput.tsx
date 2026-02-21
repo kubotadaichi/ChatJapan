@@ -1,7 +1,7 @@
 import { FormEvent, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Eye, EyeOff, MapPinned, Send, X } from 'lucide-react'
+import { Eye, EyeOff, MapPinned, Plus, Send, X } from 'lucide-react'
 import type { SelectedArea } from '@/lib/types'
 import { CategoryCoverageChips } from './CategoryCoverageChips'
 import type { CategoryCoverageItem } from './CategoryCoverageChips'
@@ -14,9 +14,21 @@ interface ChatInputProps {
   onChange: (e: React.ChangeEvent<HTMLInputElement>) => void
   onSubmit: (e: FormEvent<HTMLFormElement>) => void
   isLoading: boolean
+  isMapOpen?: boolean
+  onToggleMap?: () => void
 }
 
-export function ChatInput({ selectedArea, categories, onAreaClear, input, onChange, onSubmit, isLoading }: ChatInputProps) {
+export function ChatInput({
+  selectedArea,
+  categories,
+  onAreaClear,
+  input,
+  onChange,
+  onSubmit,
+  isLoading,
+  isMapOpen = false,
+  onToggleMap,
+}: ChatInputProps) {
   const [showCategories, setShowCategories] = useState(false)
 
   return (
@@ -57,22 +69,36 @@ export function ChatInput({ selectedArea, categories, onAreaClear, input, onChan
           </div>
         )}
         <div className="flex items-end gap-2">
-        <Input
-          value={input}
-          onChange={onChange}
-          placeholder="メッセージを入力..."
-          disabled={isLoading}
-          className="flex-1 h-10 border-0 bg-transparent shadow-none focus-visible:ring-0 focus-visible:border-transparent"
-        />
-        <Button
-          type="submit"
-          size="icon"
-          disabled={isLoading || !input?.trim()}
-          aria-label="送信"
-          className="size-9 rounded-xl"
-        >
-          <Send className="h-4 w-4" />
-        </Button>
+          {onToggleMap && (
+            <Button
+              type="button"
+              size="icon"
+              variant="outline"
+              aria-label={isMapOpen ? '地図を閉じる' : '地図を開く'}
+              onClick={onToggleMap}
+              className="size-9 rounded-xl"
+            >
+              {isMapOpen ? <X className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
+            </Button>
+          )}
+          <Input
+            name="message"
+            autoComplete="off"
+            value={input}
+            onChange={onChange}
+            placeholder="メッセージを入力…"
+            disabled={isLoading}
+            className="flex-1 h-10 border-0 bg-transparent shadow-none focus-visible:ring-0 focus-visible:border-transparent"
+          />
+          <Button
+            type="submit"
+            size="icon"
+            disabled={isLoading || !input?.trim()}
+            aria-label="送信"
+            className="size-9 rounded-xl"
+          >
+            <Send className="h-4 w-4" />
+          </Button>
         </div>
       </div>
     </form>
