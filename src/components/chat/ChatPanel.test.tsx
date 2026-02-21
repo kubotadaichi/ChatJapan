@@ -88,7 +88,8 @@ describe('ChatPanel', () => {
     expect(onAreaClear).toHaveBeenCalledTimes(1)
   })
 
-  it('shows categories strip above input when API succeeds', async () => {
+  it('toggles categories strip visibility when user switches it on', async () => {
+    const user = userEvent.setup()
     vi.stubGlobal(
       'fetch',
       vi.fn().mockResolvedValue({
@@ -109,9 +110,17 @@ describe('ChatPanel', () => {
 
     render(<ChatPanel selectedArea={null} onAreaClear={vi.fn()} />)
 
+    await waitFor(() => expect(screen.getByRole('button', { name: /カテゴリ表示/i })).toBeInTheDocument())
+    expect(screen.queryByTestId('category-coverage-strip')).not.toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: /カテゴリ表示/i }))
+
     const strip = await screen.findByTestId('category-coverage-strip')
     expect(strip).toHaveTextContent('人口統計')
     expect(strip).toHaveTextContent('市区町村')
+
+    await user.click(screen.getByRole('button', { name: /カテゴリ非表示/i }))
+    expect(screen.queryByTestId('category-coverage-strip')).not.toBeInTheDocument()
   })
 
   it('keeps chat input usable when categories API fails', async () => {
