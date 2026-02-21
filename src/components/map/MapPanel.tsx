@@ -15,83 +15,92 @@ interface MapPanelProps {
 export function MapPanel({ selectedArea, onAreaSelect, onAreaClear }: MapPanelProps) {
   const mapContainer = useRef<HTMLDivElement>(null)
   const mapRef = useRef<unknown>(null)
+  const onAreaSelectRef = useRef(onAreaSelect)
+
+  useEffect(() => {
+    onAreaSelectRef.current = onAreaSelect
+  }, [onAreaSelect])
 
   useEffect(() => {
     if (!mapContainer.current || mapRef.current) return
 
     const initMap = async () => {
-      const maplibre = (await import('maplibre-gl')).default
-      await import('maplibre-gl/dist/maplibre-gl.css')
+      try {
+        const maplibre = (await import('maplibre-gl')).default
+        await import('maplibre-gl/dist/maplibre-gl.css')
 
-      const map = new maplibre.Map({
-        container: mapContainer.current!,
-        style: {
-          version: 8,
-          sources: {
-            'osm-tiles': {
-              type: 'raster',
-              tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
-              tileSize: 256,
-              attribution: '© OpenStreetMap contributors',
+        const map = new maplibre.Map({
+          container: mapContainer.current!,
+          style: {
+            version: 8,
+            sources: {
+              'osm-tiles': {
+                type: 'raster',
+                tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
+                tileSize: 256,
+                attribution: '© OpenStreetMap contributors',
+              },
             },
+            layers: [
+              {
+                id: 'osm-tiles',
+                type: 'raster',
+                source: 'osm-tiles',
+              },
+            ],
           },
-          layers: [
-            {
-              id: 'osm-tiles',
-              type: 'raster',
-              source: 'osm-tiles',
-            },
-          ],
-        },
-        center: [137.0, 36.5],
-        zoom: 5,
-      })
-
-      mapRef.current = map
-
-      const response = await fetch(PREFECTURE_GEOJSON_URL)
-      if (response.ok) {
-        const geojson = await response.json()
-
-        map.on('load', () => {
-          map.addSource('prefectures', { type: 'geojson', data: geojson })
-
-          map.addLayer({
-            id: 'prefectures-fill',
-            type: 'fill',
-            source: 'prefectures',
-            paint: {
-              'fill-color': '#3b82f6',
-              'fill-opacity': [
-                'case',
-                ['boolean', ['feature-state', 'selected'], false],
-                0.3,
-                0,
-              ],
-            },
-          })
-
-          map.addLayer({
-            id: 'prefectures-outline',
-            type: 'line',
-            source: 'prefectures',
-            paint: { 'line-color': '#6b7280', 'line-width': 1 },
-          })
-
-          map.on('click', 'prefectures-fill', (e) => {
-            if (!e.features?.[0]) return
-            const area = extractAreaFromFeature(e.features[0] as unknown as GeoJSON.Feature, 'prefecture')
-            if (area) onAreaSelect(area)
-          })
-
-          map.on('mouseenter', 'prefectures-fill', () => {
-            map.getCanvas().style.cursor = 'pointer'
-          })
-
-          map.on('mouseleave', 'prefectures-fill', () => {
-            map.getCanvas().style.cursor = ''
-          })
+          center: [137.0, 36.5],
+          zoom: 5,
         })
+
+        mapRef.current = map
+
+        const response = await fetch(PREFECTURE_GEOJSON_URL)
+        if (response.ok) {
+          const geojson = await response.json()
+
+          map.on('load', () => {
+            map.addSource('prefectures', { type: 'geojson', data: geojson })
+
+            map.addLayer({
+              id: 'prefectures-fill',
+              type: 'fill',
+              source: 'prefectures',
+              paint: {
+                'fill-color': '#3b82f6',
+                'fill-opacity': [
+                  'case',
+                  ['boolean', ['feature-state', 'selected'], false],
+                  0.3,
+                  0,
+                ],
+              },
+            })
+
+            map.addLayer({
+              id: 'prefectures-outline',
+              type: 'line',
+              source: 'prefectures',
+              paint: { 'line-color': '#6b7280', 'line-width': 1 },
+            })
+
+            map.on('click', 'prefectures-fill', (e) => {
+              if (!e.features?.[0]) return
+              const area = extractAreaFromFeature(e.features[0] as unknown as GeoJSON.Feature, 'prefecture')
+              if (area) onAreaSelectRef.current(area)
+            })
+
+            map.on('mouseenter', 'prefectures-fill', () => {
+              map.getCanvas().style.cursor = 'pointer'
+            })
+
+            map.on('mouseleave', 'prefectures-fill', () => {
+              map.getCanvas().style.cursor = ''
+            })
+          })
+        }
+      } catch {
+        // Map initialization failed (e.g. in test environment or no WebGL)
       }
     }
 
@@ -103,7 +112,7 @@ export function MapPanel({ selectedArea, onAreaSelect, onAreaClear }: MapPanelPr
         mapRef.current = null
       }
     }
-  }, [onAreaSelect])
+  }, [])
 
   return (
     <div className="relative h-full">
