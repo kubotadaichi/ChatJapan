@@ -116,4 +116,19 @@ describe("MapPanel", () => {
     )
     expect(screen.queryByText(/の市区町村/)).not.toBeInTheDocument()
   })
+
+  it('uses theme token class for selected-area overlay', () => {
+    const area = { name: '渋谷区', code: '13113', prefCode: '13', level: 'municipality' } as const
+    render(
+      <MapPanel
+        selectedArea={area}
+        onAreaSelect={vi.fn()}
+        selectionMode="prefecture"
+        focusedPrefecture={null}
+        onEnterMunicipalityMode={vi.fn()}
+        onExitMunicipalityMode={vi.fn()}
+      />
+    )
+    expect(screen.getByText('渋谷区を選択中').closest('div')).toHaveClass('bg-card')
+  })
 })

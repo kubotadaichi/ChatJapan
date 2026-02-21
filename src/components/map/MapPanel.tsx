@@ -304,7 +304,7 @@ export function MapPanel({
     <div className="relative h-full" onClick={() => setContextMenu(null)}>
       {/* 市区町村モード中: 対象都道府県名を表示 */}
       {selectionMode === 'municipality' && focusedPrefecture && (
-        <div className="absolute top-3 left-3 z-10 bg-white/90 rounded-lg shadow px-3 py-1.5 text-xs text-zinc-600">
+        <div className="absolute top-3 left-3 z-10 bg-card/90 rounded-lg shadow px-3 py-1.5 text-xs text-muted-foreground">
           {focusedPrefecture.name}の市区町村
         </div>
       )}
@@ -312,7 +312,7 @@ export function MapPanel({
       {/* 選択中エリア名 + 解除ボタン */}
       {selectedArea && (
         <div
-          className={`absolute ${selectionMode === 'municipality' ? 'top-12' : 'top-3'} left-3 z-10 flex items-center gap-2 bg-white rounded-lg shadow px-3 py-2 text-sm font-medium`}
+          className={`absolute ${selectionMode === 'municipality' ? 'top-12' : 'top-3'} left-3 z-10 flex items-center gap-2 bg-card rounded-lg shadow px-3 py-2 text-sm font-medium`}
         >
           <span>{selectedArea.name}を選択中</span>
           <Button
@@ -329,7 +329,7 @@ export function MapPanel({
 
       {/* 操作ガイド */}
       {!selectedArea && (
-        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-10 bg-white/90 rounded-lg shadow px-3 py-1.5 text-xs text-zinc-500">
+        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-10 bg-card/90 rounded-lg shadow px-3 py-1.5 text-xs text-muted-foreground">
           {selectionMode === 'prefecture'
             ? '左クリック: 県を選択　右クリック: モード切り替え'
             : '左クリック: 市区町村を選択　右クリック: モード切り替え'}
@@ -339,12 +339,12 @@ export function MapPanel({
       {/* コンテキストメニュー */}
       {contextMenu && (
         <div
-          className="absolute z-20 bg-white rounded-lg shadow-lg py-1 min-w-[200px] border border-zinc-200"
+          className="absolute z-20 bg-card rounded-lg shadow-lg py-1 min-w-[200px] border border-border"
           style={{ left: contextMenu.x, top: contextMenu.y }}
           onClick={(e) => e.stopPropagation()}
         >
           <button
-            className={`w-full text-left px-4 py-2 text-sm hover:bg-zinc-100 flex items-center gap-2 ${selectionMode === 'prefecture' ? 'font-medium' : ''}`}
+            className={`w-full text-left px-4 py-2 text-sm hover:bg-accent flex items-center gap-2 ${selectionMode === 'prefecture' ? 'font-medium' : ''}`}
             onClick={() => {
               if (selectionMode !== 'prefecture') {
                 onExitMunicipalityMode()
@@ -360,7 +360,7 @@ export function MapPanel({
               selectionMode === 'municipality'
                 ? 'font-medium'
                 : contextMenu.prefecture
-                  ? 'hover:bg-zinc-100'
+                  ? 'hover:bg-accent'
                   : 'opacity-50 cursor-not-allowed'
             }`}
             disabled={selectionMode === 'prefecture' && !contextMenu.prefecture}
@@ -374,14 +374,14 @@ export function MapPanel({
             <span className="w-4">{selectionMode === 'municipality' ? '✓' : ''}</span>
             市区町村モード
           </button>
-          <div className="border-t border-zinc-200 my-1" />
+          <div className="border-t border-border my-1" />
           <button
             disabled
             className="w-full text-left px-4 py-2 text-sm opacity-50 cursor-not-allowed flex items-center gap-2"
           >
             <span className="w-4" />
             円周モード
-            <span className="text-xs ml-auto text-zinc-400">(準備中)</span>
+            <span className="text-xs ml-auto text-muted-foreground">(準備中)</span>
           </button>
           <button
             disabled
@@ -389,7 +389,7 @@ export function MapPanel({
           >
             <span className="w-4" />
             矩形モード
-            <span className="text-xs ml-auto text-zinc-400">(準備中)</span>
+            <span className="text-xs ml-auto text-muted-foreground">(準備中)</span>
           </button>
           <button
             disabled
@@ -397,7 +397,7 @@ export function MapPanel({
           >
             <span className="w-4" />
             複数選択
-            <span className="text-xs ml-auto text-zinc-400">(準備中)</span>
+            <span className="text-xs ml-auto text-muted-foreground">(準備中)</span>
           </button>
         </div>
       )}
