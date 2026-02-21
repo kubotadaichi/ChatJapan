@@ -2,6 +2,7 @@
 
 import { Button } from '@/components/ui/button'
 import { ThreeColumnLayout } from '@/components/layout/ThreeColumnLayout'
+import { MobileLayout } from '@/components/layout/MobileLayout'
 import { MapPanel } from '@/components/map/MapPanel'
 import { ChatPanel } from '@/components/chat/ChatPanel'
 import { SessionSidebar } from '@/components/session/SessionSidebar'
@@ -37,19 +38,21 @@ export default function Home() {
     deleteSession,
   } = useSessionManager(isLoggedIn)
 
-  const sidebar = isLoggedIn ? (
+  const sidebarToggleButton = (
+    <Button
+      variant="ghost"
+      size="icon"
+      onClick={() => setIsSidebarCollapsed((prev) => !prev)}
+      aria-label={isSidebarCollapsed ? 'サイドバーを開く' : 'サイドバーを閉じる'}
+      className="size-8"
+    >
+      {isSidebarCollapsed ? <PanelLeftOpen className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
+    </Button>
+  )
+
+  const desktopSidebar = isLoggedIn ? (
     isSidebarCollapsed ? (
-      <div className="flex h-full w-14 flex-col items-center border-r border-border bg-muted/40 px-2 py-3">
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={() => setIsSidebarCollapsed(false)}
-          aria-label="サイドバーを開く"
-          className="size-8"
-        >
-          <PanelLeftOpen className="h-4 w-4" />
-        </Button>
-      </div>
+      <div className="p-2">{sidebarToggleButton}</div>
     ) : (
       <div className="h-full w-[160px] min-w-[140px]">
         <SessionSidebar
@@ -58,17 +61,24 @@ export default function Home() {
           onNewSession={startNewSession}
           onSelectSession={selectSession}
           onDeleteSession={deleteSession}
-          headerAction={
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => setIsSidebarCollapsed(true)}
-              aria-label="サイドバーを閉じる"
-              className="size-8 shrink-0"
-            >
-              <ChevronLeft className="h-4 w-4" />
-            </Button>
-          }
+          headerAction={sidebarToggleButton}
+        />
+      </div>
+    )
+  ) : undefined
+
+  const mobileSidebar = isLoggedIn ? (
+    isSidebarCollapsed ? (
+      <div className="flex items-center border-b border-border/60 px-2 py-2">{sidebarToggleButton}</div>
+    ) : (
+      <div className="h-[36vh] min-h-[200px] border-b border-border/60">
+        <SessionSidebar
+          sessions={sessions}
+          currentSessionId={currentSessionId}
+          onNewSession={startNewSession}
+          onSelectSession={selectSession}
+          onDeleteSession={deleteSession}
+          headerAction={sidebarToggleButton}
         />
       </div>
     )
@@ -101,21 +111,27 @@ export default function Home() {
     </div>
   ) : undefined
 
-  return (
-    <ThreeColumnLayout
-      sidebar={sidebar}
-      center={mapPane}
-      right={
-        <ChatPanel
-          selectedArea={selectedArea}
-          onAreaClear={clearSelection}
-          sessionId={currentSessionId}
-          onSessionCreated={handleSessionCreated}
-          onTitleGenerated={handleTitleGenerated}
-          isMapOpen={isMapOpen}
-          onToggleMap={() => setIsMapOpen((prev) => !prev)}
-        />
-      }
+  const chatPane = (
+    <ChatPanel
+      selectedArea={selectedArea}
+      onAreaClear={clearSelection}
+      sessionId={currentSessionId}
+      onSessionCreated={handleSessionCreated}
+      onTitleGenerated={handleTitleGenerated}
+      isMapOpen={isMapOpen}
+      onToggleMap={() => setIsMapOpen((prev) => !prev)}
     />
+  )
+
+  return (
+    <>
+      <div className="hidden h-full md:block">
+        <ThreeColumnLayout sidebar={desktopSidebar} center={mapPane} right={chatPane} />
+      </div>
+
+      <div className="h-full md:hidden">
+        <MobileLayout sidebar={mobileSidebar} map={mapPane} chat={chatPane} isMapOpen={isMapOpen} />
+      </div>
+    </>
   )
 }
