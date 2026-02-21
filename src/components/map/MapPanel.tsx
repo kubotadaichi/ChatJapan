@@ -4,6 +4,7 @@ import { useEffect, useRef } from 'react'
 import type { SelectedArea } from '@/lib/types'
 import { Button } from '@/components/ui/button'
 import { X } from 'lucide-react'
+import { extractAreaFromFeature, PREFECTURE_GEOJSON_URL } from '@/lib/geojson/japan'
 
 interface MapPanelProps {
   selectedArea: SelectedArea | null
@@ -47,6 +48,51 @@ export function MapPanel({ selectedArea, onAreaSelect, onAreaClear }: MapPanelPr
       })
 
       mapRef.current = map
+
+      const response = await fetch(PREFECTURE_GEOJSON_URL)
+      if (response.ok) {
+        const geojson = await response.json()
+
+        map.on('load', () => {
+          map.addSource('prefectures', { type: 'geojson', data: geojson })
+
+          map.addLayer({
+            id: 'prefectures-fill',
+            type: 'fill',
+            source: 'prefectures',
+            paint: {
+              'fill-color': '#3b82f6',
+              'fill-opacity': [
+                'case',
+                ['boolean', ['feature-state', 'selected'], false],
+                0.3,
+                0,
+              ],
+            },
+          })
+
+          map.addLayer({
+            id: 'prefectures-outline',
+            type: 'line',
+            source: 'prefectures',
+            paint: { 'line-color': '#6b7280', 'line-width': 1 },
+          })
+
+          map.on('click', 'prefectures-fill', (e) => {
+            if (!e.features?.[0]) return
+            const area = extractAreaFromFeature(e.features[0] as unknown as GeoJSON.Feature, 'prefecture')
+            if (area) onAreaSelect(area)
+          })
+
+          map.on('mouseenter', 'prefectures-fill', () => {
+            map.getCanvas().style.cursor = 'pointer'
+          })
+
+          map.on('mouseleave', 'prefectures-fill', () => {
+            map.getCanvas().style.cursor = ''
+          })
+        })
+      }
     }
 
     initMap()
@@ -57,7 +103,7 @@ export function MapPanel({ selectedArea, onAreaSelect, onAreaClear }: MapPanelPr
         mapRef.current = null
       }
     }
-  }, [])
+  }, [onAreaSelect])
 
   return (
     <div className="relative h-full">
