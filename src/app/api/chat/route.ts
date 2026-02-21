@@ -40,6 +40,7 @@ e-Stat（政府統計ポータル）のデータを使用して、ユーザー�
 ${areaContext}
 
 回答は日本語で、分かりやすく具体的に提供してください。
+coverageMismatch または note が返ってきた場合は、要求レベルと実際に利用したデータレベルの差分を明示して回答してください。
 データが古い場合や取得できない場合は、その旨を明示してください。`,
     messages: await convertToModelMessages(messages),
     tools,
