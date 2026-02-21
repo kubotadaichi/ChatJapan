@@ -20,6 +20,8 @@ export function createStatisticsTools(estatApiKey: string) {
             id: c.id,
             name: c.name,
             description: c.description,
+            coverage: c.coverage,
+            coverageNote: c.coverageNote ?? null,
           })),
         }
       },
@@ -129,9 +131,14 @@ areaCodeは市区町村コード(5桁, 例: 13113)または都道府県コード
         try {
           const results = await fetchForArea(normalizedCode)
           return {
+            categoryId: category.id,
             category: category.name,
+            categoryCoverage: category.coverage,
             areaCode: normalizedCode,
             dataLevel: level,
+            requestedDataLevel: level,
+            resolvedDataLevel: level,
+            coverageMismatch: false,
             data: results,
           }
         } catch (muniError) {
@@ -141,9 +148,14 @@ areaCodeは市区町村コード(5桁, 例: 13113)または都道府県コード
               const prefNormalized = EStatClient.normalizeAreaCode(prefCode, 'prefecture')
               const results = await fetchForArea(prefNormalized)
               return {
+                categoryId: category.id,
                 category: category.name,
+                categoryCoverage: category.coverage,
                 areaCode: prefNormalized,
                 dataLevel: 'prefecture',
+                requestedDataLevel: 'municipality',
+                resolvedDataLevel: 'prefecture',
+                coverageMismatch: true,
                 note: `市区町村レベル(${normalizedCode})のデータが取得できないため、都道府県レベル(${prefNormalized})のデータを返します。ユーザーにその旨を伝えてください。`,
                 data: results,
               }
