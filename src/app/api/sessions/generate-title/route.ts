@@ -33,7 +33,7 @@ export async function POST(req: Request) {
   const { text } = await generateText({
     model: getLLMModel(),
     prompt: `以下の会話に対して、10文字以内の簡潔なタイトルを日本語で生成してください。タイトルのみを返してください。\n\nユーザー: ${userMsg}\nAI: ${aiMsg.slice(0, 200)}`,
-    maxTokens: 30,
+    maxOutputTokens: 30,
   })
 
   const title = text.trim().replace(/^["「]|["」]$/g, '')
