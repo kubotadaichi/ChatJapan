@@ -1,6 +1,6 @@
 'use client'
 
-import { SplitLayout } from '@/components/layout/SplitLayout'
+import { ThreeColumnLayout } from '@/components/layout/ThreeColumnLayout'
 import { MapPanel } from '@/components/map/MapPanel'
 import { ChatPanel } from '@/components/chat/ChatPanel'
 import { useMapSelection } from '@/hooks/useMapSelection'
@@ -17,8 +17,8 @@ export default function Home() {
   } = useMapSelection()
 
   return (
-    <SplitLayout
-      left={
+    <ThreeColumnLayout
+      center={
         <MapPanel
           selectedArea={selectedArea}
           onAreaSelect={selectArea}
