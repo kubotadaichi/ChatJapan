@@ -20,7 +20,7 @@ export function ThreeColumnLayout({ sidebar, center, right }: ThreeColumnLayoutP
 
   if (!sidebar) {
     return (
-      <PanelGroup direction="horizontal" className="h-full w-full">
+      <PanelGroup orientation="horizontal" className="h-full w-full">
         <Panel defaultSize={50} minSize={30}>
           {center}
         </Panel>
@@ -45,7 +45,7 @@ export function ThreeColumnLayout({ sidebar, center, right }: ThreeColumnLayoutP
     <div className="flex h-full w-full overflow-hidden">
       <aside className="h-full shrink-0">{sidebar}</aside>
       <div className="min-w-0 flex-1">
-        <PanelGroup direction="horizontal" className="h-full w-full">
+        <PanelGroup orientation="horizontal" className="h-full w-full">
           <Panel defaultSize={50} minSize={30}>
             {center}
           </Panel>
