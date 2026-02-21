@@ -31,6 +31,7 @@ export function MapPanel({
   const mapRef = useRef<unknown>(null)
   const onAreaSelectRef = useRef(onAreaSelect)
   const onDrillDownRef = useRef(onDrillDown)
+  const prevSelectedAreaRef = useRef<SelectedArea | null>(null)
 
   useEffect(() => {
     onAreaSelectRef.current = onAreaSelect
@@ -39,6 +40,39 @@ export function MapPanel({
   useEffect(() => {
     onDrillDownRef.current = onDrillDown
   }, [onDrillDown])
+
+  // 選択エリアのフィーチャーステート（ハイライト）
+  useEffect(() => {
+    const map = mapRef.current as {
+      getSource: (id: string) => unknown
+      setFeatureState: (feature: { source: string; id: string }, state: Record<string, boolean>) => void
+    } | null
+    if (!map) return
+
+    const MUNI_SOURCE = 'municipalities'
+
+    // 前の選択を解除
+    if (prevSelectedAreaRef.current?.level === 'municipality') {
+      if (map.getSource(MUNI_SOURCE)) {
+        map.setFeatureState(
+          { source: MUNI_SOURCE, id: prevSelectedAreaRef.current.code },
+          { selected: false }
+        )
+      }
+    }
+
+    // 新しい選択をハイライト
+    if (selectedArea?.level === 'municipality') {
+      if (map.getSource(MUNI_SOURCE)) {
+        map.setFeatureState(
+          { source: MUNI_SOURCE, id: selectedArea.code },
+          { selected: true }
+        )
+      }
+    }
+
+    prevSelectedAreaRef.current = selectedArea
+  }, [selectedArea])
 
   // 市区町村レイヤーの追加・削除
   useEffect(() => {
@@ -67,7 +101,7 @@ export function MapPanel({
         .then((geojson) => {
           if (map.getSource(MUNI_SOURCE)) return // 既に追加済み
 
-          map.addSource(MUNI_SOURCE, { type: 'geojson', data: geojson })
+          map.addSource(MUNI_SOURCE, { type: 'geojson', data: geojson, promoteId: 'N03_007' })
 
           map.addLayer({
             id: MUNI_FILL,

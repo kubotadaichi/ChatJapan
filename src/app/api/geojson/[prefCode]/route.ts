@@ -39,14 +39,8 @@ export async function GET(
     })
   }
 
-  // e-Stat GIS API から取得
-  const apiKey = process.env.ESTAT_API_KEY
-  if (!apiKey) {
-    return Response.json({ error: 'ESTAT_API_KEY is not configured' }, { status: 500 })
-  }
-
   try {
-    const client = new EStatGisClient(apiKey)
+    const client = new EStatGisClient()
     const geojson = await client.fetchMunicipalityGeoJson(prefCode)
     const body = JSON.stringify(geojson)
 
