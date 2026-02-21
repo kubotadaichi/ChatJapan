@@ -1,8 +1,8 @@
-import type { Message } from 'ai'
+import type { UIMessage } from 'ai'
 import { ScrollArea } from '@/components/ui/scroll-area'
 
 interface MessageListProps {
-  messages: Message[]
+  messages: UIMessage[]
 }
 
 export function MessageList({ messages }: MessageListProps) {
@@ -23,13 +23,15 @@ export function MessageList({ messages }: MessageListProps) {
             className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
           >
             <div
-              className={`max-w-[80%] rounded-lg px-4 py-2 text-sm whitespace-pre-wrap ${
-                message.role === 'user'
+              className={`max-w-[80%] rounded-lg px-4 py-2 text-sm whitespace-pre-wrap ${message.role === 'user'
                   ? 'bg-blue-500 text-white'
                   : 'bg-zinc-100 text-zinc-900'
-              }`}
+                }`}
             >
-              {message.content}
+              {message.parts
+              .filter((p) => p.type === 'text')
+              .map((p) => ('text' in p ? p.text : ''))
+              .join('')}
             </div>
           </div>
         ))}

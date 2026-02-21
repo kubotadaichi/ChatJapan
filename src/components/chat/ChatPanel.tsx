@@ -1,6 +1,8 @@
 'use client'
 
-import { useChat } from 'ai/react'
+import { useState, useRef, useMemo, FormEvent } from 'react'
+import { useChat } from '@ai-sdk/react'
+import { DefaultChatTransport } from 'ai'
 import type { SelectedArea } from '@/lib/types'
 import { MessageList } from './MessageList'
 import { ChatInput } from './ChatInput'
@@ -10,10 +12,28 @@ interface ChatPanelProps {
 }
 
 export function ChatPanel({ selectedArea }: ChatPanelProps) {
-  const { messages, input, handleInputChange, handleSubmit, isLoading } = useChat({
-    api: '/api/chat',
-    body: { selectedArea },
-  })
+  const selectedAreaRef = useRef(selectedArea)
+  selectedAreaRef.current = selectedArea
+
+  const transport = useMemo(
+    () =>
+      new DefaultChatTransport({
+        api: '/api/chat',
+        body: () => ({ selectedArea: selectedAreaRef.current }),
+      }),
+    []
+  )
+
+  const { messages, sendMessage, status } = useChat({ transport })
+  const [input, setInput] = useState('')
+  const isLoading = status === 'submitted' || status === 'streaming'
+
+  const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault()
+    if (!input.trim()) return
+    sendMessage({ text: input })
+    setInput('')
+  }
 
   return (
     <div className="flex flex-col h-full">
@@ -30,7 +50,7 @@ export function ChatPanel({ selectedArea }: ChatPanelProps) {
 
       <ChatInput
         input={input}
-        onChange={handleInputChange}
+        onChange={(e) => setInput(e.target.value)}
         onSubmit={handleSubmit}
         isLoading={isLoading}
       />

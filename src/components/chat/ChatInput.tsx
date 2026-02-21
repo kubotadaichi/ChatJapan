@@ -20,7 +20,7 @@ export function ChatInput({ input, onChange, onSubmit, isLoading }: ChatInputPro
         disabled={isLoading}
         className="flex-1"
       />
-      <Button type="submit" disabled={isLoading || !input.trim()} aria-label="送信">
+      <Button type="submit" disabled={isLoading || !input?.trim()} aria-label="送信">
         <Send className="h-4 w-4" />
       </Button>
     </form>

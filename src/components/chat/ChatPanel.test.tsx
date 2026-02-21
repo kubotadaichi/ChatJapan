@@ -2,13 +2,12 @@ import { render, screen } from '@testing-library/react'
 import { describe, it, expect, vi } from 'vitest'
 import { ChatPanel } from './ChatPanel'
 
-vi.mock('ai/react', () => ({
+vi.mock('@ai-sdk/react', () => ({
   useChat: vi.fn().mockReturnValue({
     messages: [],
-    input: '',
-    handleInputChange: vi.fn(),
-    handleSubmit: vi.fn(),
-    isLoading: false,
+    sendMessage: vi.fn(),
+    status: 'ready',
+    setMessages: vi.fn(),
   }),
 }))
 
