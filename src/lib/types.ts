@@ -23,9 +23,13 @@ export interface ChatSession {
   createdAt: Date
 }
 
+export type StatisticsCoverage = 'municipality' | 'prefecture' | 'mixed'
+
 export type StatisticsCategory = {
   id: string          // "population", "commerce", "economy"
   name: string        // "人口統計"
   description: string // "国勢調査による人口・世帯情報"
   statsIds: string[]  // e-Stat の統計表ID一覧
+  coverage: StatisticsCoverage
+  coverageNote?: string
 }
