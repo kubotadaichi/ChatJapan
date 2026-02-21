@@ -2,6 +2,7 @@ import { streamText, stepCountIs, convertToModelMessages } from 'ai'
 import type { UIMessage } from 'ai'
 import { openai } from '@ai-sdk/openai'
 import { anthropic } from '@ai-sdk/anthropic'
+import { google } from '@ai-sdk/google'
 import { createStatisticsTools } from '@/lib/llm/tools'
 import type { SelectedArea } from '@/lib/types'
 
@@ -10,6 +11,9 @@ function getLLMModel() {
 
   if (provider === 'anthropic') {
     return anthropic(process.env.LLM_MODEL ?? 'claude-sonnet-4-6')
+  }
+  if (provider === 'google') {
+    return google(process.env.LLM_MODEL ?? 'gemini-2.0-flash')
   }
   return openai(process.env.LLM_MODEL ?? 'gpt-4o')
 }
