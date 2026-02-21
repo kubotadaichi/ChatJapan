@@ -1,7 +1,10 @@
 import { tool } from 'ai'
 import { z } from 'zod'
 import { EStatClient } from '@/lib/estat/client'
+import type { EStatResponse } from '@/lib/estat/client'
 import { STATISTICS_CATEGORIES, getCategoryById } from '@/lib/estat/categories'
+
+type StatData = NonNullable<EStatResponse['GET_STATS_DATA']['STATISTICAL_DATA']>
 
 export function createStatisticsTools(estatApiKey: string) {
   const client = new EStatClient(estatApiKey)
@@ -61,79 +64,94 @@ export function createStatisticsTools(estatApiKey: string) {
     fetchStatistics: tool({
       description: `指定したエリアの統計データをe-Stat APIから取得します。
 areaCodeは市区町村コード(5桁, 例: 13113)または都道府県コード(2桁, 例: 13)を使用してください。
-データが見つからない場合はsearchStatsListで別の統計表IDを探してください。`,
+市区町村レベルのデータが取得できない場合は自動的に都道府県レベルにフォールバックします。
+都道府県レベルも失敗した場合はsearchStatsListで別の統計表IDを探してください。`,
       inputSchema: z.object({
         categoryId: z.string().describe('統計カテゴリID (listStatisticsCategoriesで取得)'),
         areaCode: z.string().describe('市区町村コード(例: 13113)または都道府県コード(例: 13)'),
         prefCode: z.string().describe('都道府県コード2桁 (例: 13)'),
       }),
-      execute: async ({ categoryId, areaCode }) => {
+      execute: async ({ categoryId, areaCode, prefCode }) => {
         const category = getCategoryById(categoryId)
         if (!category) {
           return { error: `カテゴリ '${categoryId}' が見つかりません` }
         }
 
+        const decodeValues = (statData: StatData, statsId: string) => {
+          if (!statData) return { statsId, error: 'データなし', values: [] }
+          const classMap = EStatClient.buildClassMap(statData.CLASS_INF)
+          const tableName = typeof statData.TABLE_INF.TITLE === 'string'
+            ? statData.TABLE_INF.TITLE
+            : statData.TABLE_INF.TITLE['$']
+          const decodedValues = statData.DATA_INF.VALUE.slice(0, 50).map((v) => {
+            const decoded: Record<string, string> = {
+              値: v['$'],
+              地域: classMap['area']?.[v['@area']] ?? v['@area'],
+              時点: classMap['time']?.[v['@time']] ?? v['@time'],
+            }
+            Object.entries(v).forEach(([key, val]) => {
+              if (key.startsWith('@cat')) {
+                const catId = key.slice(1)
+                const classObjArray = Array.isArray(statData.CLASS_INF.CLASS_OBJ)
+                  ? statData.CLASS_INF.CLASS_OBJ
+                  : [statData.CLASS_INF.CLASS_OBJ]
+                const classObj = classObjArray.find((c) => c['@id'] === catId)
+                const label = classObj?.['@name'] ?? catId
+                decoded[label] = classMap[catId]?.[val] ?? val
+              }
+            })
+            return decoded
+          })
+          return {
+            statsId,
+            tableName,
+            statisticsName: statData.TABLE_INF.STATISTICS_NAME,
+            surveyDate: statData.TABLE_INF.SURVEY_DATE,
+            totalCount: statData.RESULT_INF.TOTAL_NUMBER,
+            shownCount: decodedValues.length,
+            values: decodedValues,
+          }
+        }
+
+        const fetchForArea = async (code: string) => {
+          return Promise.all(
+            category.statsIds.map(async (statsId) => {
+              const response = await client.fetchStatsData(statsId, code, { limit: 100 })
+              return decodeValues(response.GET_STATS_DATA.STATISTICAL_DATA!, statsId)
+            })
+          )
+        }
+
         const level = areaCode.length <= 2 ? 'prefecture' : 'municipality'
         const normalizedCode = EStatClient.normalizeAreaCode(areaCode, level)
 
+        // 市区町村レベルで試みる
         try {
-          const results = await Promise.all(
-            category.statsIds.map(async (statsId) => {
-              const response = await client.fetchStatsData(statsId, normalizedCode, { limit: 100 })
-              const statData = response.GET_STATS_DATA.STATISTICAL_DATA
-              if (!statData) {
-                return { statsId, error: 'データなし', values: [] }
-              }
-
-              // CLASS_INFからコード→名前マッピングを構築
-              const classMap = EStatClient.buildClassMap(statData.CLASS_INF)
-
-              // 統計表名
-              const tableName = typeof statData.TABLE_INF.TITLE === 'string'
-                ? statData.TABLE_INF.TITLE
-                : statData.TABLE_INF.TITLE['$']
-
-              // VALUE を人間が読める形式にデコード
-              const decodedValues = statData.DATA_INF.VALUE.slice(0, 50).map((v) => {
-                const decoded: Record<string, string> = {
-                  値: v['$'],
-                  地域: classMap['area']?.[v['@area']] ?? v['@area'],
-                  時点: classMap['time']?.[v['@time']] ?? v['@time'],
-                }
-                // @cat01, @cat02, ... を対応するカテゴリ名でデコード
-                Object.entries(v).forEach(([key, val]) => {
-                  if (key.startsWith('@cat')) {
-                    const catId = key.slice(1) // '@cat01' → 'cat01'
-                    const classObjArray = Array.isArray(statData.CLASS_INF.CLASS_OBJ)
-                      ? statData.CLASS_INF.CLASS_OBJ
-                      : [statData.CLASS_INF.CLASS_OBJ]
-                    const classObj = classObjArray.find((c) => c['@id'] === catId)
-                    const label = classObj?.['@name'] ?? catId
-                    decoded[label] = classMap[catId]?.[val] ?? val
-                  }
-                })
-                return decoded
-              })
-
-              return {
-                statsId,
-                tableName,
-                statisticsName: statData.TABLE_INF.STATISTICS_NAME,
-                surveyDate: statData.TABLE_INF.SURVEY_DATE,
-                totalCount: statData.RESULT_INF.TOTAL_NUMBER,
-                shownCount: decodedValues.length,
-                values: decodedValues,
-              }
-            })
-          )
-
+          const results = await fetchForArea(normalizedCode)
           return {
             category: category.name,
             areaCode: normalizedCode,
+            dataLevel: level,
             data: results,
           }
-        } catch (error) {
-          return { error: `データ取得エラー: ${String(error)}` }
+        } catch (muniError) {
+          // 市区町村レベル失敗時は都道府県レベルにフォールバック
+          if (level === 'municipality') {
+            try {
+              const prefNormalized = EStatClient.normalizeAreaCode(prefCode, 'prefecture')
+              const results = await fetchForArea(prefNormalized)
+              return {
+                category: category.name,
+                areaCode: prefNormalized,
+                dataLevel: 'prefecture',
+                note: `市区町村レベル(${normalizedCode})のデータが取得できないため、都道府県レベル(${prefNormalized})のデータを返します。ユーザーにその旨を伝えてください。`,
+                data: results,
+              }
+            } catch (prefError) {
+              return { error: `データ取得エラー（市区町村・都道府県ともに失敗）: 市区町村=${String(muniError)}, 都道府県=${String(prefError)}` }
+            }
+          }
+          return { error: `データ取得エラー: ${String(muniError)}` }
         }
       },
     }),

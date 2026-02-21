@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { SelectedArea } from '@/lib/types'
 import type { ViewLevel } from '@/hooks/useMapSelection'
 import { Button } from '@/components/ui/button'
@@ -18,6 +18,12 @@ interface MapPanelProps {
   onDrillUp: () => void
 }
 
+interface ContextMenu {
+  x: number
+  y: number
+  area: SelectedArea
+}
+
 export function MapPanel({
   selectedArea,
   onAreaSelect,
@@ -31,7 +37,9 @@ export function MapPanel({
   const mapRef = useRef<unknown>(null)
   const onAreaSelectRef = useRef(onAreaSelect)
   const onDrillDownRef = useRef(onDrillDown)
+  const viewLevelRef = useRef(viewLevel)
   const prevSelectedAreaRef = useRef<SelectedArea | null>(null)
+  const [contextMenu, setContextMenu] = useState<ContextMenu | null>(null)
 
   useEffect(() => {
     onAreaSelectRef.current = onAreaSelect
@@ -41,11 +49,23 @@ export function MapPanel({
     onDrillDownRef.current = onDrillDown
   }, [onDrillDown])
 
+  useEffect(() => {
+    viewLevelRef.current = viewLevel
+  }, [viewLevel])
+
+  // コンテキストメニュー外クリックで閉じる
+  useEffect(() => {
+    if (!contextMenu) return
+    const handleClick = () => setContextMenu(null)
+    window.addEventListener('click', handleClick)
+    return () => window.removeEventListener('click', handleClick)
+  }, [contextMenu])
+
   // 選択エリアのフィーチャーステート（ハイライト）
   useEffect(() => {
     const map = mapRef.current as {
       getSource: (id: string) => unknown
-      setFeatureState: (feature: { source: string; id: string }, state: Record<string, boolean>) => void
+      setFeatureState: (feature: { source: string; id: string | number }, state: Record<string, boolean>) => void
     } | null
     if (!map) return
 
@@ -139,8 +159,8 @@ export function MapPanel({
             map.getCanvas().style.cursor = ''
           })
 
-          // 都道府県にズームイン
-          map.flyTo({ zoom: 8 })
+          // 都道府県にズームイン（zoom 9でより詳細に表示）
+          map.flyTo({ zoom: 9 })
         })
         .catch(() => {
           // フェッチ失敗は無視（UIエラー表示は将来的に追加）
@@ -211,14 +231,32 @@ export function MapPanel({
             paint: { 'line-color': '#6b7280', 'line-width': 1 },
           })
 
-          // 都道府県クリック → ドリルダウン
+          // 都道府県クリック → ドリルダウン（市区町村モード中は無効）
           map.on('click', 'prefectures-fill', (e) => {
+            if (viewLevelRef.current !== 'prefecture') return
             if (!e.features?.[0]) return
             const area = extractAreaFromFeature(
               e.features[0] as unknown as GeoJSON.Feature,
               'prefecture'
             )
             if (area) onDrillDownRef.current(area)
+          })
+
+          // 都道府県右クリック → コンテキストメニュー
+          map.on('contextmenu', 'prefectures-fill', (e) => {
+            const ev = e as {
+              features?: GeoJSON.Feature[]
+              point: { x: number; y: number }
+              originalEvent: MouseEvent
+            }
+            ev.originalEvent.preventDefault()
+            if (!ev.features?.[0]) return
+            const area = extractAreaFromFeature(
+              ev.features[0] as unknown as GeoJSON.Feature,
+              'prefecture'
+            )
+            if (!area) return
+            setContextMenu({ x: ev.point.x, y: ev.point.y, area })
           })
 
           map.on('mouseenter', 'prefectures-fill', () => {
@@ -292,6 +330,28 @@ export function MapPanel({
           >
             <X className="h-3 w-3" />
           </Button>
+        </div>
+      )}
+
+      {/* 右クリックコンテキストメニュー */}
+      {contextMenu && (
+        <div
+          className="absolute z-20 bg-white rounded-lg shadow-lg border border-zinc-200 py-1 min-w-36"
+          style={{ left: contextMenu.x, top: contextMenu.y }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="px-3 py-1.5 text-xs text-zinc-500 font-medium border-b border-zinc-100">
+            {contextMenu.area.name}
+          </div>
+          <button
+            className="w-full text-left px-3 py-2 text-sm hover:bg-zinc-50 transition-colors"
+            onClick={() => {
+              onDrillDownRef.current(contextMenu.area)
+              setContextMenu(null)
+            }}
+          >
+            市区町村を選択
+          </button>
         </div>
       )}
 
