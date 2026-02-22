@@ -11,21 +11,36 @@ export function useSessionManager(isLoggedIn: boolean) {
   const [sessions, setSessions] = useState<SessionSummary[]>([])
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null)
 
-  const fetchSessions = useCallback(async () => {
-    if (!isLoggedIn) return
+  const fetchSessions = useCallback(async (): Promise<SessionSummary[] | null> => {
+    if (!isLoggedIn) return null
     try {
       const res = await fetch('/api/sessions')
-      if (!res.ok) return
+      if (!res.ok) return null
       const body = (await res.json()) as { sessions: SessionSummary[] }
-      setSessions(body.sessions)
+      return body.sessions
     } catch {
       // ignore
+      return null
     }
   }, [isLoggedIn])
 
   useEffect(() => {
-    void fetchSessions()
-  }, [fetchSessions])
+    if (!isLoggedIn) return
+
+    let cancelled = false
+
+    const loadInitialSessions = async () => {
+      const loadedSessions = await fetchSessions()
+      if (cancelled || !loadedSessions) return
+      setSessions(loadedSessions)
+    }
+
+    void loadInitialSessions()
+
+    return () => {
+      cancelled = true
+    }
+  }, [fetchSessions, isLoggedIn])
 
   const startNewSession = useCallback(() => {
     setCurrentSessionId(null)
@@ -38,13 +53,19 @@ export function useSessionManager(isLoggedIn: boolean) {
   const handleSessionCreated = useCallback(
     (id: string) => {
       setCurrentSessionId(id)
-      void fetchSessions()
+      void fetchSessions().then((loadedSessions) => {
+        if (!loadedSessions) return
+        setSessions(loadedSessions)
+      })
     },
     [fetchSessions]
   )
 
   const handleTitleGenerated = useCallback(() => {
-    void fetchSessions()
+    void fetchSessions().then((loadedSessions) => {
+      if (!loadedSessions) return
+      setSessions(loadedSessions)
+    })
   }, [fetchSessions])
 
   const deleteSession = useCallback(

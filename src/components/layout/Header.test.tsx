@@ -2,6 +2,7 @@ import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach } from 'vitest'
 import { describe, it, expect, vi } from 'vitest'
+import { useSession } from 'next-auth/react'
 import { Header } from './Header'
 
 const mockSetTheme = vi.fn()
@@ -21,6 +22,11 @@ describe('Header', () => {
   beforeEach(() => {
     mockSetTheme.mockReset()
     mockUseTheme.mockReturnValue({ resolvedTheme: 'dark', setTheme: mockSetTheme })
+    vi.mocked(useSession).mockReturnValue({
+      data: null,
+      status: 'unauthenticated',
+      update: vi.fn(),
+    })
   })
 
   it('toggles to light when current theme is dark', async () => {
@@ -43,5 +49,32 @@ describe('Header', () => {
 
     await user.click(toggle)
     expect(mockSetTheme).toHaveBeenCalledWith('light')
+  })
+
+  it('ログイン中はアバターボタンを表示する', () => {
+    vi.mocked(useSession).mockReturnValue({
+      data: {
+        user: { name: 'テストユーザー', email: 'test@example.com', image: null },
+        expires: '',
+      },
+      status: 'authenticated',
+      update: vi.fn(),
+    })
+
+    render(<Header />)
+
+    expect(screen.getByRole('button', { name: /アカウントメニュー/ })).toBeInTheDocument()
+    expect(screen.queryByText('test@example.com')).not.toBeInTheDocument()
+  })
+
+  it('未ログインはログインボタンを表示する', () => {
+    vi.mocked(useSession).mockReturnValue({
+      data: null,
+      status: 'unauthenticated',
+      update: vi.fn(),
+    })
+
+    render(<Header />)
+    expect(screen.getByRole('button', { name: /ログイン/ })).toBeInTheDocument()
   })
 })

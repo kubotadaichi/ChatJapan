@@ -86,6 +86,11 @@ export function ChatInput({
             autoComplete="off"
             value={input}
             onChange={onChange}
+            onKeyDown={(e) => {
+              if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+                e.currentTarget.form?.requestSubmit()
+              }
+            }}
             placeholder="メッセージを入力…"
             disabled={isLoading}
             className="flex-1 h-10 border-0 bg-transparent shadow-none focus-visible:ring-0 focus-visible:border-transparent"

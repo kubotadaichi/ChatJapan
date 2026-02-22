@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 340 80" width="340" height="80">
+  <defs>
+    <linearGradient id="underlineGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#BC002D;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#BC002D;stop-opacity:0" />
+    </linearGradient>
+  </defs>
+
+  <!-- "Chat" bold dark -->
+  <text x="0" y="54"
+        font-family="'Helvetica Neue', 'Arial', sans-serif"
+        font-size="52"
+        font-weight="800"
+        fill="#1A1A3E"
+        letter-spacing="-1">Chat</text>
+
+  <!-- "Japan" light red -->
+  <text x="128" y="54"
+        font-family="'Helvetica Neue', 'Arial', sans-serif"
+        font-size="52"
+        font-weight="300"
+        fill="#BC002D"
+        letter-spacing="0">Japan</text>
+
+  <!-- Tagline -->
+  <text x="2" y="72"
+        font-family="'Helvetica Neue', 'Arial', sans-serif"
+        font-size="11"
+        font-weight="400"
+        fill="#9CA3AF"
+        letter-spacing="3.5">AI CHAT SERVICE</text>
+
+  <!-- Accent line -->
+  <line x1="0" y1="78" x2="338" y2="78" stroke="url(#underlineGrad)" stroke-width="1.5"/>
+</svg>
