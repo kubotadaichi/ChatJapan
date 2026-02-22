@@ -268,13 +268,9 @@ export function MapPanel({
 
           // 地図上のどこでも右クリックでモード変更メニューを開けるようにする
           map.on('contextmenu', (e) => {
-            const ev = e as {
-              originalEvent: MouseEvent
-              point: { x: number; y: number }
-            }
-            ev.originalEvent.preventDefault()
+            e.originalEvent.preventDefault()
 
-            const rendered = map.queryRenderedFeatures(ev.point, { layers: ['prefectures-fill'] })
+            const rendered = map.queryRenderedFeatures(e.point, { layers: ['prefectures-fill'] })
             const clickedPrefecture =
               rendered[0]
                 ? extractAreaFromFeature(
@@ -287,8 +283,8 @@ export function MapPanel({
               selectedAreasRef.current.find((area) => area.level === 'prefecture') ?? null
 
             setContextMenu({
-              x: ev.point.x,
-              y: ev.point.y,
+              x: e.point.x,
+              y: e.point.y,
               prefecture: clickedPrefecture ?? selectedPrefecture ?? focusedPrefectureRef.current ?? null,
             })
           })
