@@ -33,6 +33,11 @@ describe('createStatisticsTools', () => {
     expect(tools.getAreaInfo).toBeDefined()
   })
 
+  it('returns addArea tool', () => {
+    const tools = createStatisticsTools('test-key')
+    expect(tools.addArea).toBeDefined()
+  })
+
   it('listStatisticsCategories returns all categories', async () => {
     const tools = createStatisticsTools('test-key')
     const result = await tools.listStatisticsCategories.execute({}, { messages: [], toolCallId: 'test' })
@@ -115,5 +120,25 @@ describe('createStatisticsTools', () => {
     expect(result.areaCode).toBe('13000')
     expect(result.areaName).toBe('東京都')
     expect(result.note).toBeDefined()
+  })
+
+  it('addArea ツールが area 情報を返す', async () => {
+    const tools = createStatisticsTools('dummy-key')
+    const result = await tools.addArea.execute(
+      {
+        name: '渋谷区',
+        code: '13113',
+        prefCode: '13',
+        level: 'municipality',
+      },
+      { messages: [], toolCallId: 'test' }
+    )
+
+    expect(result).toEqual({
+      name: '渋谷区',
+      code: '13113',
+      prefCode: '13',
+      level: 'municipality',
+    })
   })
 })

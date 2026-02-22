@@ -1,8 +1,18 @@
-import { render, screen } from '@testing-library/react'
+import { act, render, screen } from '@testing-library/react'
 import { describe, it, expect } from 'vitest'
 import { MobileLayout } from './MobileLayout'
+import { useState } from 'react'
 
 describe('MobileLayout', () => {
+  function Stateful() {
+    const [n, setN] = useState(0)
+    return (
+      <button onClick={() => setN((c) => c + 1)} data-testid="counter">
+        {n}
+      </button>
+    )
+  }
+
   it('renders only chat area when map is closed', () => {
     render(
       <MobileLayout
@@ -14,7 +24,8 @@ describe('MobileLayout', () => {
     )
 
     expect(screen.getByTestId('chat')).toBeInTheDocument()
-    expect(screen.queryByTestId('map')).not.toBeInTheDocument()
+    const mapWrapper = screen.getByTestId('map').parentElement
+    expect(mapWrapper?.className).toContain('hidden')
   })
 
   it('renders map and chat stacked vertically when map is open', () => {
@@ -45,5 +56,18 @@ describe('MobileLayout', () => {
     )
 
     expect(screen.getByTestId('mobile-sidebar')).toBeInTheDocument()
+  })
+
+  it('chat is not remounted when isMapOpen toggles', () => {
+    const { rerender } = render(<MobileLayout chat={<Stateful />} isMapOpen={false} />)
+
+    act(() => screen.getByTestId('counter').click())
+    expect(screen.getByTestId('counter').textContent).toBe('1')
+
+    rerender(<MobileLayout map={<div>map</div>} chat={<Stateful />} isMapOpen={true} />)
+    expect(screen.getByTestId('counter').textContent).toBe('1')
+
+    rerender(<MobileLayout chat={<Stateful />} isMapOpen={false} />)
+    expect(screen.getByTestId('counter').textContent).toBe('1')
   })
 })

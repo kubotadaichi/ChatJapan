@@ -2,23 +2,25 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { ChatPanel } from './ChatPanel'
 
-const { setMessagesMock } = vi.hoisted(() => ({
+const { setMessagesMock, sendMessageMock } = vi.hoisted(() => ({
   setMessagesMock: vi.fn(),
+  sendMessageMock: vi.fn(),
 }))
 
 vi.mock('@ai-sdk/react', () => ({
   useChat: vi.fn().mockReturnValue({
     messages: [],
     setMessages: setMessagesMock,
-    sendMessage: vi.fn(),
+    sendMessage: sendMessageMock,
     status: 'ready',
   }),
 }))
 
 describe('ChatPanel', () => {
   const defaultProps = {
-    selectedArea: null,
+    selectedAreas: [],
     onAreaClear: vi.fn(),
+    onAreaRemove: vi.fn(),
     sessionId: null,
     onSessionCreated: vi.fn(),
     onTitleGenerated: vi.fn(),
@@ -29,7 +31,7 @@ describe('ChatPanel', () => {
       'fetch',
       vi.fn().mockResolvedValue({
         ok: true,
-        json: async () => ({ categories: [] }),
+        json: async () => ({ session: { messages: [] } }),
       })
     )
   })
@@ -38,6 +40,7 @@ describe('ChatPanel', () => {
     vi.restoreAllMocks()
     vi.unstubAllGlobals()
     setMessagesMock.mockReset()
+    sendMessageMock.mockReset()
   })
 
   it('renders chat input', () => {
@@ -54,7 +57,7 @@ describe('ChatPanel', () => {
     render(
       <ChatPanel
         {...defaultProps}
-        selectedArea={{ name: '渋谷区', code: '13113', prefCode: '13', level: 'municipality' }}
+        selectedAreas={[{ name: '渋谷区', code: '13113', prefCode: '13', level: 'municipality' }]}
       />
     )
     expect(screen.getByText(/渋谷区/)).toBeInTheDocument()
@@ -75,19 +78,14 @@ describe('ChatPanel', () => {
   it('loads messages when session is selected', async () => {
     vi.stubGlobal(
       'fetch',
-      vi.fn()
-        .mockResolvedValueOnce({
-          ok: true,
-          json: async () => ({ categories: [] }),
-        })
-        .mockResolvedValueOnce({
-          ok: true,
-          json: async () => ({
-            session: {
-              messages: [{ id: 'm1', role: 'user', content: 'こんにちは' }],
-            },
-          }),
-        })
+      vi.fn().mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          session: {
+            messages: [{ id: 'm1', role: 'user', content: 'こんにちは' }],
+          },
+        }),
+      })
     )
 
     render(<ChatPanel {...defaultProps} sessionId="s1" />)
@@ -102,5 +100,21 @@ describe('ChatPanel', () => {
         ])
       )
     )
+  })
+
+  it('送信ボタンを連打しても1回しか送信されない', async () => {
+    render(<ChatPanel {...defaultProps} />)
+
+    fireEvent.change(screen.getByPlaceholderText(/メッセージを入力/), {
+      target: { value: '連打テスト' },
+    })
+
+    const submit = screen.getByRole('button', { name: /送信/ })
+    fireEvent.click(submit)
+    fireEvent.click(submit)
+
+    await waitFor(() => {
+      expect(sendMessageMock).toHaveBeenCalledTimes(1)
+    })
   })
 })

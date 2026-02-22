@@ -6,6 +6,7 @@ import { MobileLayout } from '@/components/layout/MobileLayout'
 import { MapPanel } from '@/components/map/MapPanel'
 import { ChatPanel } from '@/components/chat/ChatPanel'
 import { SessionSidebar } from '@/components/session/SessionSidebar'
+import { OnboardingModal } from '@/components/onboarding/OnboardingModal'
 import { useMapSelection } from '@/hooks/useMapSelection'
 import { useSessionManager } from '@/hooks/useSessionManager'
 import { ChevronLeft, PanelLeftOpen } from 'lucide-react'
@@ -19,7 +20,7 @@ export default function Home() {
   const [isMapOpen, setIsMapOpen] = useState(false)
 
   const {
-    selectedArea,
+    selectedAreas,
     selectionMode,
     focusedPrefecture,
     selectArea,
@@ -100,7 +101,7 @@ export default function Home() {
       </div>
       <div className="min-h-0 flex-1">
         <MapPanel
-          selectedArea={selectedArea}
+          selectedAreas={selectedAreas}
           onAreaSelect={selectArea}
           selectionMode={selectionMode}
           focusedPrefecture={focusedPrefecture}
@@ -113,8 +114,10 @@ export default function Home() {
 
   const chatPane = (
     <ChatPanel
-      selectedArea={selectedArea}
+      selectedAreas={selectedAreas}
       onAreaClear={clearSelection}
+      onAreaRemove={selectArea}
+      onAreaAdd={selectArea}
       sessionId={currentSessionId}
       onSessionCreated={handleSessionCreated}
       onTitleGenerated={handleTitleGenerated}
@@ -125,6 +128,7 @@ export default function Home() {
 
   return (
     <>
+      <OnboardingModal />
       <div className="hidden h-full md:block">
         <ThreeColumnLayout sidebar={desktopSidebar} center={mapPane} right={chatPane} />
       </div>

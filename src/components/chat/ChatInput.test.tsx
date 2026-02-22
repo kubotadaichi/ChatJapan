@@ -4,13 +4,15 @@ import { ChatInput } from './ChatInput'
 
 function createProps() {
   return {
-    selectedArea: null,
-    categories: [],
+    selectedAreas: [],
     onAreaClear: vi.fn(),
+    onAreaRemove: vi.fn(),
     input: 'テスト入力',
     onChange: vi.fn(),
     onSubmit: vi.fn(),
     isLoading: false,
+    agentMode: 'default' as const,
+    onAgentModeChange: vi.fn(),
   }
 }
 

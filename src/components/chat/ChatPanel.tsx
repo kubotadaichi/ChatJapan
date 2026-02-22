@@ -5,13 +5,15 @@ import { useChat } from '@ai-sdk/react'
 import { DefaultChatTransport } from 'ai'
 import type { UIMessage } from 'ai'
 import type { SelectedArea } from '@/lib/types'
+import type { AgentMode } from '@/lib/llm/prompts'
 import { MessageList } from './MessageList'
 import { ChatInput } from './ChatInput'
-import type { CategoryCoverageItem } from './CategoryCoverageChips'
 
 interface ChatPanelProps {
-  selectedArea: SelectedArea | null
+  selectedAreas: SelectedArea[]
   onAreaClear: () => void
+  onAreaRemove: (area: SelectedArea) => void
+  onAreaAdd?: (area: SelectedArea) => void
   sessionId: string | null
   onSessionCreated: (id: string) => void
   onTitleGenerated: () => void
@@ -33,42 +35,51 @@ function extractTextContent(message: UIMessage): string {
 }
 
 export function ChatPanel({
-  selectedArea,
+  selectedAreas,
   onAreaClear,
+  onAreaRemove,
+  onAreaAdd,
   sessionId,
   onSessionCreated,
   onTitleGenerated,
   isMapOpen = false,
   onToggleMap,
 }: ChatPanelProps) {
-  const selectedAreaRef = useRef(selectedArea)
-  selectedAreaRef.current = selectedArea
+  const selectedAreasRef = useRef(selectedAreas)
+  selectedAreasRef.current = selectedAreas
   const sessionIdRef = useRef(sessionId)
   sessionIdRef.current = sessionId
-  const [categories, setCategories] = useState<CategoryCoverageItem[]>([])
+  const [agentMode, setAgentMode] = useState<AgentMode>('default')
+  const agentModeRef = useRef(agentMode)
+  agentModeRef.current = agentMode
+  const processedToolInvocations = useRef<Set<string>>(new Set())
+  const skipSessionLoadForIdRef = useRef<string | null>(null)
 
   const transport = useMemo(
     () =>
       new DefaultChatTransport({
         api: '/api/chat',
-        body: () => ({ selectedArea: selectedAreaRef.current }),
+        body: () => ({ selectedAreas: selectedAreasRef.current, agentMode: agentModeRef.current }),
       }),
     []
   )
 
   const { messages, setMessages, sendMessage, status } = useChat({ transport })
   const [input, setInput] = useState('')
+  const [isSubmitLocked, setIsSubmitLocked] = useState(false)
+  const submitLockRef = useRef(false)
+  const submitLockTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const isLoading = status === 'submitted' || status === 'streaming'
 
   const prevStatus = useRef(status)
   const isSavingRef = useRef(false)
 
   useEffect(() => {
-    const wasStreaming = prevStatus.current === 'streaming'
+    const wasActive = prevStatus.current === 'submitted' || prevStatus.current === 'streaming'
     const isReady = status === 'ready'
     prevStatus.current = status
 
-    if (!wasStreaming || !isReady) return
+    if (!wasActive || !isReady) return
     if (isSavingRef.current) return
 
     const currentSessionId = sessionIdRef.current
@@ -81,7 +92,7 @@ export function ChatPanel({
 
     isSavingRef.current = true
 
-    const area = selectedAreaRef.current
+    const area = selectedAreasRef.current[0] ?? null
     const messagesToSave = [
       {
         role: 'user',
@@ -115,35 +126,32 @@ export function ChatPanel({
   }, [messages, onTitleGenerated, status])
 
   useEffect(() => {
-    let cancelled = false
-
-    const fetchCategories = async () => {
-      try {
-        const res = await fetch('/api/statistics/categories')
-        if (!res.ok) throw new Error(`Failed to fetch categories: ${res.status}`)
-        const body = (await res.json()) as { categories?: CategoryCoverageItem[] }
-        if (!cancelled && Array.isArray(body.categories) && body.categories.length > 0) {
-          setCategories(body.categories)
-        }
-      } catch {
-        if (!cancelled) {
-          setCategories((current) => (current.length === 0 ? current : []))
-        }
-      }
-    }
-
-    void fetchCategories()
     return () => {
-      cancelled = true
+      if (submitLockTimerRef.current) {
+        clearTimeout(submitLockTimerRef.current)
+      }
     }
   }, [])
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault()
-    if (!input.trim()) return
+    const textToSend = input.trim()
+    if (!textToSend) return
+    if (isLoading || submitLockRef.current) return
+
+    submitLockRef.current = true
+    setIsSubmitLocked(true)
+    if (submitLockTimerRef.current) {
+      clearTimeout(submitLockTimerRef.current)
+    }
+    submitLockTimerRef.current = setTimeout(() => {
+      submitLockRef.current = false
+      setIsSubmitLocked(false)
+      submitLockTimerRef.current = null
+    }, 500)
 
     if (!sessionIdRef.current) {
-      const area = selectedAreaRef.current
+      const area = selectedAreasRef.current[0] ?? null
       try {
         const res = await fetch('/api/sessions', {
           method: 'POST',
@@ -152,6 +160,7 @@ export function ChatPanel({
         })
         if (res.ok) {
           const body = (await res.json()) as { session: { id: string } }
+          skipSessionLoadForIdRef.current = body.session.id
           onSessionCreated(body.session.id)
         }
       } catch {
@@ -159,9 +168,40 @@ export function ChatPanel({
       }
     }
 
-    sendMessage({ text: input })
+    sendMessage({ text: textToSend })
     setInput('')
   }
+
+  useEffect(() => {
+    if (!onAreaAdd) return
+
+    messages.forEach((message) => {
+      message.parts.forEach((part) => {
+        if (part.type !== 'tool-invocation') return
+        const toolPart = part as {
+          toolName?: string
+          state?: string
+          toolInvocationId?: string
+          result?: unknown
+        }
+        if (toolPart.toolName !== 'addArea' || toolPart.state !== 'result') return
+        if (!toolPart.toolInvocationId) return
+        if (processedToolInvocations.current.has(toolPart.toolInvocationId)) return
+
+        const result = toolPart.result as Partial<SelectedArea> | undefined
+        if (!result?.name || !result.code || !result.prefCode || !result.level) return
+        if (result.level !== 'prefecture' && result.level !== 'municipality') return
+
+        processedToolInvocations.current.add(toolPart.toolInvocationId)
+        onAreaAdd({
+          name: result.name,
+          code: result.code,
+          prefCode: result.prefCode,
+          level: result.level,
+        })
+      })
+    })
+  }, [messages, onAreaAdd])
 
   const prevSessionId = useRef<string | null>(null)
   useEffect(() => {
@@ -189,6 +229,8 @@ export function ChatPanel({
       prevSessionId.current = sessionId
       if (sessionId === null) {
         setMessages([])
+      } else if (skipSessionLoadForIdRef.current === sessionId) {
+        skipSessionLoadForIdRef.current = null
       } else {
         void loadSessionMessages(sessionId)
       }
@@ -201,16 +243,18 @@ export function ChatPanel({
 
   return (
     <div className="flex flex-col h-full">
-      <MessageList messages={messages} />
+      <MessageList messages={messages} isLoading={isLoading || isSubmitLocked} />
 
       <ChatInput
-        selectedArea={selectedArea}
-        categories={categories}
+        selectedAreas={selectedAreas}
         onAreaClear={onAreaClear}
+        onAreaRemove={onAreaRemove}
         input={input}
         onChange={(e) => setInput(e.target.value)}
         onSubmit={handleSubmit}
-        isLoading={isLoading}
+        isLoading={isLoading || isSubmitLocked}
+        agentMode={agentMode}
+        onAgentModeChange={setAgentMode}
         isMapOpen={isMapOpen}
         onToggleMap={onToggleMap}
       />

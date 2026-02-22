@@ -31,7 +31,7 @@ describe("MapPanel", () => {
     const onSelect = vi.fn()
     render(
       <MapPanel
-        selectedArea={null}
+        selectedAreas={[]}
         onAreaSelect={onSelect}
         selectionMode="prefecture"
         focusedPrefecture={null}
@@ -52,7 +52,7 @@ describe("MapPanel", () => {
     const onSelect = vi.fn()
     render(
       <MapPanel
-        selectedArea={area}
+        selectedAreas={[area]}
         onAreaSelect={onSelect}
         selectionMode="prefecture"
         focusedPrefecture={null}
@@ -73,7 +73,7 @@ describe("MapPanel", () => {
     const onSelect = vi.fn()
     render(
       <MapPanel
-        selectedArea={area}
+        selectedAreas={[area]}
         onAreaSelect={onSelect}
         selectionMode="prefecture"
         focusedPrefecture={null}
@@ -87,7 +87,7 @@ describe("MapPanel", () => {
   it('shows focused prefecture name when selectionMode is municipality', () => {
     render(
       <MapPanel
-        selectedArea={null}
+        selectedAreas={[]}
         onAreaSelect={vi.fn()}
         selectionMode="municipality"
         focusedPrefecture={{
@@ -106,7 +106,7 @@ describe("MapPanel", () => {
   it('does not show prefecture indicator when selectionMode is prefecture', () => {
     render(
       <MapPanel
-        selectedArea={null}
+        selectedAreas={[]}
         onAreaSelect={vi.fn()}
         selectionMode="prefecture"
         focusedPrefecture={null}
@@ -121,7 +121,7 @@ describe("MapPanel", () => {
     const area = { name: '渋谷区', code: '13113', prefCode: '13', level: 'municipality' } as const
     render(
       <MapPanel
-        selectedArea={area}
+        selectedAreas={[area]}
         onAreaSelect={vi.fn()}
         selectionMode="prefecture"
         focusedPrefecture={null}

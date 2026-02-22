@@ -243,5 +243,20 @@ areaCodeは市区町村コード(5桁, 例: 13113)または都道府県コード
         }
       },
     }),
+
+    addArea: tool({
+      description: `ユーザーが言及した地名をエリアとして地図上に追加します。
+ユーザーが特定の都市・区・市町村・都道府県名を言及したとき、このツールを呼び出してエリアを設定してください。
+areaCodeには e-Stat の地域コードを使用してください（都道府県: 2桁, 市区町村: 5桁）。`,
+      inputSchema: z.object({
+        name: z.string().describe('エリア名（例: 渋谷区, 東京都）'),
+        code: z.string().describe('地域コード（都道府県2桁 or 市区町村5桁, 例: 13113）'),
+        prefCode: z.string().describe('都道府県コード2桁（例: 13）'),
+        level: z.enum(['prefecture', 'municipality']).describe('エリアの粒度'),
+      }),
+      execute: async ({ name, code, prefCode, level }) => {
+        return { name, code, prefCode, level }
+      },
+    }),
   }
 }

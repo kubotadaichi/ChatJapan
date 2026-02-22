@@ -13,7 +13,7 @@ interface ContextMenu {
 }
 
 interface MapPanelProps {
-  selectedArea: SelectedArea | null
+  selectedAreas: SelectedArea[]
   onAreaSelect: (area: SelectedArea) => void
   selectionMode: SelectionMode
   focusedPrefecture: SelectedArea | null
@@ -22,7 +22,7 @@ interface MapPanelProps {
 }
 
 export function MapPanel({
-  selectedArea,
+  selectedAreas,
   onAreaSelect,
   selectionMode,
   focusedPrefecture,
@@ -32,15 +32,25 @@ export function MapPanel({
   const mapContainer = useRef<HTMLDivElement>(null)
   const mapRef = useRef<unknown>(null)
   const onAreaSelectRef = useRef(onAreaSelect)
+  const selectedAreasRef = useRef(selectedAreas)
+  const focusedPrefectureRef = useRef(focusedPrefecture)
   // selectionModeRef: イベントハンドラー内でstaleクロージャを防ぐ
   const selectionModeRef = useRef(selectionMode)
-  const prevSelectedAreaRef = useRef<SelectedArea | null>(null)
+  const prevSelectedAreasRef = useRef<SelectedArea[]>([])
 
   const [contextMenu, setContextMenu] = useState<ContextMenu | null>(null)
 
   useEffect(() => {
     onAreaSelectRef.current = onAreaSelect
   }, [onAreaSelect])
+
+  useEffect(() => {
+    selectedAreasRef.current = selectedAreas
+  }, [selectedAreas])
+
+  useEffect(() => {
+    focusedPrefectureRef.current = focusedPrefecture
+  }, [focusedPrefecture])
 
   useEffect(() => {
     selectionModeRef.current = selectionMode
@@ -61,42 +71,45 @@ export function MapPanel({
     const MUNI_SOURCE = 'municipalities'
 
     // 前の選択を解除
-    const prev = prevSelectedAreaRef.current
-    if (prev?.level === 'prefecture') {
-      if (map.getSource(PREF_SOURCE)) {
-        map.setFeatureState(
-          { source: PREF_SOURCE, id: Number(prev.code) },
-          { selected: false }
-        )
+    prevSelectedAreasRef.current.forEach((prev) => {
+      if (prev.level === 'prefecture') {
+        if (map.getSource(PREF_SOURCE)) {
+          map.setFeatureState(
+            { source: PREF_SOURCE, id: Number(prev.code) },
+            { selected: false }
+          )
+        }
+      } else if (prev.level === 'municipality') {
+        if (map.getSource(MUNI_SOURCE)) {
+          map.setFeatureState(
+            { source: MUNI_SOURCE, id: prev.code },
+            { selected: false }
+          )
+        }
       }
-    } else if (prev?.level === 'municipality') {
-      if (map.getSource(MUNI_SOURCE)) {
-        map.setFeatureState(
-          { source: MUNI_SOURCE, id: prev.code },
-          { selected: false }
-        )
-      }
-    }
+    })
 
     // 新しい選択をハイライト
-    if (selectedArea?.level === 'prefecture') {
-      if (map.getSource(PREF_SOURCE)) {
-        map.setFeatureState(
-          { source: PREF_SOURCE, id: Number(selectedArea.code) },
-          { selected: true }
-        )
+    selectedAreas.forEach((area) => {
+      if (area.level === 'prefecture') {
+        if (map.getSource(PREF_SOURCE)) {
+          map.setFeatureState(
+            { source: PREF_SOURCE, id: Number(area.code) },
+            { selected: true }
+          )
+        }
+      } else if (area.level === 'municipality') {
+        if (map.getSource(MUNI_SOURCE)) {
+          map.setFeatureState(
+            { source: MUNI_SOURCE, id: area.code },
+            { selected: true }
+          )
+        }
       }
-    } else if (selectedArea?.level === 'municipality') {
-      if (map.getSource(MUNI_SOURCE)) {
-        map.setFeatureState(
-          { source: MUNI_SOURCE, id: selectedArea.code },
-          { selected: true }
-        )
-      }
-    }
+    })
 
-    prevSelectedAreaRef.current = selectedArea
-  }, [selectedArea])
+    prevSelectedAreasRef.current = selectedAreas
+  }, [selectedAreas])
 
   // 市区町村レイヤーの追加・削除
   useEffect(() => {
@@ -156,16 +169,6 @@ export function MapPanel({
             if (!ev.features?.[0]) return
             const area = extractAreaFromFeature(ev.features[0], 'municipality')
             if (area) onAreaSelectRef.current(area)
-          })
-
-          // 市区町村 右クリック → コンテキストメニュー表示
-          map.on('contextmenu', MUNI_FILL, (e: unknown) => {
-            const ev = e as {
-              originalEvent: MouseEvent
-              point: { x: number; y: number }
-            }
-            ev.originalEvent.preventDefault()
-            setContextMenu({ x: ev.point.x, y: ev.point.y, prefecture: focusedPrefecture })
           })
 
           map.on('mouseenter', MUNI_FILL, () => {
@@ -256,29 +259,38 @@ export function MapPanel({
             if (area) onAreaSelectRef.current(area)
           })
 
-          // 都道府県 右クリック → コンテキストメニュー表示（市区町村モード中はスキップ、muniレイヤーが処理）
-          map.on('contextmenu', 'prefectures-fill', (e) => {
-            if (selectionModeRef.current !== 'prefecture') return
-            const ev = e as {
-              features?: GeoJSON.Feature[]
-              originalEvent: MouseEvent
-              point: { x: number; y: number }
-            }
-            ev.originalEvent.preventDefault()
-            const area = ev.features?.[0]
-              ? extractAreaFromFeature(
-                  ev.features[0] as unknown as GeoJSON.Feature,
-                  'prefecture'
-                )
-              : null
-            setContextMenu({ x: ev.point.x, y: ev.point.y, prefecture: area })
-          })
-
           map.on('mouseenter', 'prefectures-fill', () => {
             map.getCanvas().style.cursor = 'pointer'
           })
           map.on('mouseleave', 'prefectures-fill', () => {
             map.getCanvas().style.cursor = ''
+          })
+
+          // 地図上のどこでも右クリックでモード変更メニューを開けるようにする
+          map.on('contextmenu', (e) => {
+            const ev = e as {
+              originalEvent: MouseEvent
+              point: { x: number; y: number }
+            }
+            ev.originalEvent.preventDefault()
+
+            const rendered = map.queryRenderedFeatures(ev.point, { layers: ['prefectures-fill'] })
+            const clickedPrefecture =
+              rendered[0]
+                ? extractAreaFromFeature(
+                    rendered[0] as unknown as GeoJSON.Feature,
+                    'prefecture'
+                  )
+                : null
+
+            const selectedPrefecture =
+              selectedAreasRef.current.find((area) => area.level === 'prefecture') ?? null
+
+            setContextMenu({
+              x: ev.point.x,
+              y: ev.point.y,
+              prefecture: clickedPrefecture ?? selectedPrefecture ?? focusedPrefectureRef.current ?? null,
+            })
           })
         }
       } catch {
@@ -306,7 +318,7 @@ export function MapPanel({
       )}
 
       {/* 操作ガイド */}
-      {!selectedArea && (
+      {selectedAreas.length === 0 && (
         <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-10 bg-card/90 rounded-lg shadow px-3 py-1.5 text-xs text-muted-foreground">
           {selectionMode === 'prefecture'
             ? '左クリック: 県を選択　右クリック: モード切り替え'
