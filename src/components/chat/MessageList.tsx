@@ -168,28 +168,22 @@ export function MessageList({ messages, isLoading = false }: MessageListProps) {
     )
   }
 
+  const lastMessage = messages[messages.length - 1]
+  const activeToolCalls =
+    isLoading && lastMessage
+      ? lastMessage.parts
+          .filter((p) => p.type === 'tool-invocation' && (p as { state?: string }).state === 'call')
+          .map((p) => p as { toolName?: string; toolInvocationId?: string })
+      : []
+
   return (
     <div className="flex-1 min-h-0 overflow-y-auto">
       <div className="mx-auto w-full max-w-3xl px-4 py-5 space-y-5">
         {messages.map((message, messageIndex) => {
           const text = getMessageText(message)
-          const toolCallParts = message.parts
-            .map((part, index) => ({ part, index }))
-            .filter(({ part }) => part.type === 'tool-invocation' && (part as { state?: string }).state === 'call')
 
           return (
             <div key={`${message.id}-${messageIndex}`} className="space-y-2">
-              {toolCallParts.map(({ part, index }) => {
-                const toolPart = part as { toolInvocationId?: string; toolName?: string }
-                return (
-                  <div
-                    className="flex justify-start"
-                    key={`${toolPart.toolInvocationId ?? 'tool'}-${messageIndex}-${index}`}
-                  >
-                    <ToolCallIndicator toolName={toolPart.toolName ?? ''} />
-                  </div>
-                )
-              })}
               {text && (
                 <div className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                   {message.role === 'assistant' ? (
@@ -204,7 +198,17 @@ export function MessageList({ messages, isLoading = false }: MessageListProps) {
             </div>
           )
         })}
-        {isLoading && <TypingIndicator />}
+        {isLoading && (
+          <div className="space-y-2">
+            {activeToolCalls.map((tool, i) => (
+              <ToolCallIndicator
+                key={tool.toolInvocationId ?? String(i)}
+                toolName={tool.toolName ?? ''}
+              />
+            ))}
+            <TypingIndicator />
+          </div>
+        )}
         <div ref={bottomRef} />
       </div>
     </div>
