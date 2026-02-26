@@ -4,7 +4,7 @@ import { OnboardingModal } from './OnboardingModal'
 
 describe('OnboardingModal', () => {
   beforeEach(() => {
-    localStorage.clear()
+    window.localStorage.clear()
   })
 
   it('初回アクセス時にモーダルが表示される', () => {
@@ -21,11 +21,11 @@ describe('OnboardingModal', () => {
   it('localStorageに guided フラグが保存される', () => {
     render(<OnboardingModal />)
     fireEvent.click(screen.getByRole('button', { name: /使い方を理解しました|はじめる/ }))
-    expect(localStorage.getItem('guided')).toBe('1')
+    expect(window.localStorage.getItem('guided')).toBe('1')
   })
 
   it('すでに guided フラグがある場合はモーダルを表示しない', () => {
-    localStorage.setItem('guided', '1')
+    window.localStorage.setItem('guided', '1')
     render(<OnboardingModal />)
     expect(screen.queryByRole('dialog')).toBeNull()
   })
