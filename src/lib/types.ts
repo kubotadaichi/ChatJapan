@@ -33,3 +33,27 @@ export type StatisticsCategory = {
   coverage: StatisticsCoverage
   coverageNote?: string
 }
+
+export interface SkillFormConfig {
+  targetIndustry: string
+  targetAudience: string
+  outputFormat: 'report' | 'table' | 'slide' | 'bullets'
+  keyMetrics: string[]
+  tone: 'formal' | 'casual' | 'business'
+}
+
+export interface Skill {
+  id: string
+  name: string
+  description: string
+  icon: string | null
+  parentId: string | null
+  children?: Skill[]
+  formConfig: SkillFormConfig
+  extraPrompt: string | null
+  systemPrompt: string
+  statsCategories: string[]
+  customStatsIds: string[]
+  isActive: boolean
+  sortOrder: number
+}
