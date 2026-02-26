@@ -41,3 +41,25 @@ model ChatMessage {
 
   @@index([sessionId, createdAt])
 }
+
+model Skill {
+  id          String   @id @default(cuid())
+  name        String
+  description String
+  icon        String?
+
+  parentId String?
+  parent   Skill?  @relation("SkillTree", fields: [parentId], references: [id])
+  children Skill[] @relation("SkillTree")
+
+  formConfig      Json
+  extraPrompt     String?
+  systemPrompt    String
+  statsCategories String[]
+  customStatsIds  String[]
+
+  isActive  Boolean  @default(true)
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
