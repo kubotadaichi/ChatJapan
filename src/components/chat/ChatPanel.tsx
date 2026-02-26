@@ -8,6 +8,7 @@ import type { SelectedArea } from '@/lib/types'
 import type { AgentMode } from '@/lib/llm/prompts'
 import { MessageList } from './MessageList'
 import { ChatInput } from './ChatInput'
+import { type SkillSelection } from './SkillPicker'
 
 interface ChatPanelProps {
   selectedAreas: SelectedArea[]
@@ -49,9 +50,13 @@ export function ChatPanel({
   selectedAreasRef.current = selectedAreas
   const sessionIdRef = useRef(sessionId)
   sessionIdRef.current = sessionId
-  const [agentMode, setAgentMode] = useState<AgentMode>('default')
-  const agentModeRef = useRef(agentMode)
-  agentModeRef.current = agentMode
+  const [skillSelection, setSkillSelection] = useState<SkillSelection>({ type: 'auto' })
+  const [autoSelectedSkill, setAutoSelectedSkill] = useState<{
+    skillId: string
+    skillName: string
+  } | null>(null)
+  const resolvedSkillIdRef = useRef<string | undefined>(undefined)
+  const resolvedAgentModeRef = useRef<AgentMode>('default')
   const processedToolInvocations = useRef<Set<string>>(new Set())
   const skipSessionLoadForIdRef = useRef<string | null>(null)
 
@@ -59,7 +64,11 @@ export function ChatPanel({
     () =>
       new DefaultChatTransport({
         api: '/api/chat',
-        body: () => ({ selectedAreas: selectedAreasRef.current, agentMode: agentModeRef.current }),
+        body: () => ({
+          selectedAreas: selectedAreasRef.current,
+          agentMode: resolvedAgentModeRef.current,
+          skillId: resolvedSkillIdRef.current,
+        }),
       }),
     []
   )
@@ -149,6 +158,40 @@ export function ChatPanel({
       setIsSubmitLocked(false)
       submitLockTimerRef.current = null
     }, 500)
+
+    let resolvedSkillId: string | undefined
+    let resolvedAgentMode: AgentMode = 'default'
+
+    if (skillSelection.type === 'auto') {
+      try {
+        const res = await fetch('/api/skills/classify', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message: textToSend }),
+        })
+        const data = await res.json()
+        if (data.skillId && data.confidence >= 0.5) {
+          resolvedSkillId = data.skillId
+          setAutoSelectedSkill({
+            skillId: data.skillId,
+            skillName: data.skillName ?? data.skillId,
+          })
+        } else {
+          setAutoSelectedSkill(null)
+        }
+      } catch {
+        setAutoSelectedSkill(null)
+      }
+    } else if (skillSelection.type === 'skill') {
+      resolvedSkillId = skillSelection.skillId
+      setAutoSelectedSkill(null)
+    } else {
+      resolvedAgentMode = skillSelection.agentMode
+      setAutoSelectedSkill(null)
+    }
+
+    resolvedSkillIdRef.current = resolvedSkillId
+    resolvedAgentModeRef.current = resolvedAgentMode
 
     if (!sessionIdRef.current) {
       const area = selectedAreasRef.current[0] ?? null
@@ -253,8 +296,10 @@ export function ChatPanel({
         onChange={(e) => setInput(e.target.value)}
         onSubmit={handleSubmit}
         isLoading={isLoading || isSubmitLocked}
-        agentMode={agentMode}
-        onAgentModeChange={setAgentMode}
+        skillSelection={skillSelection}
+        onSkillSelectionChange={setSkillSelection}
+        autoSelectedSkill={autoSelectedSkill}
+        onClearAutoSelected={() => setAutoSelectedSkill(null)}
         isMapOpen={isMapOpen}
         onToggleMap={onToggleMap}
       />

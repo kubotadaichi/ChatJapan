@@ -2,6 +2,10 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { ChatPanel } from './ChatPanel'
 
+vi.mock('./SkillPicker', () => ({
+  SkillPicker: () => <div data-testid="skill-picker" />,
+}))
+
 const { setMessagesMock, sendMessageMock } = vi.hoisted(() => ({
   setMessagesMock: vi.fn(),
   sendMessageMock: vi.fn(),
