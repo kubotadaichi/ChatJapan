@@ -52,6 +52,13 @@ describe('createStatisticsTools', () => {
     expect(result.categories[0]).toHaveProperty('coverage')
   })
 
+  it('listStatisticsCategories applies category filter when provided', async () => {
+    const tools = createStatisticsTools('test-key', ['commerce'])
+    const result = await tools.listStatisticsCategories.execute({}, { messages: [], toolCallId: 'test' })
+    expect(result.categories).toHaveLength(1)
+    expect(result.categories[0]?.id).toBe('commerce')
+  })
+
   it('returns mismatch metadata when municipality request falls back to prefecture', async () => {
     const fetchMock = vi.fn()
     fetchMock.mockResolvedValueOnce({

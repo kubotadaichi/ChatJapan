@@ -6,7 +6,7 @@ import { STATISTICS_CATEGORIES, getCategoryById } from '@/lib/estat/categories'
 
 type StatData = NonNullable<EStatResponse['GET_STATS_DATA']['STATISTICAL_DATA']>
 
-export function createStatisticsTools(estatApiKey: string) {
+export function createStatisticsTools(estatApiKey: string, categoryFilter: string[] | null = null) {
   const client = new EStatClient(estatApiKey)
 
   return {
@@ -15,8 +15,11 @@ export function createStatisticsTools(estatApiKey: string) {
         '利用可能な統計カテゴリの一覧を返します。ユーザーの質問に最適なカテゴリを選択するために呼び出してください。',
       inputSchema: z.object({}),
       execute: async () => {
+        const categories = categoryFilter
+          ? STATISTICS_CATEGORIES.filter((c) => categoryFilter.includes(c.id))
+          : STATISTICS_CATEGORIES
         return {
-          categories: STATISTICS_CATEGORIES.map((c) => ({
+          categories: categories.map((c) => ({
             id: c.id,
             name: c.name,
             description: c.description,

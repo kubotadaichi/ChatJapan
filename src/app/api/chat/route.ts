@@ -6,6 +6,8 @@ import { google } from '@ai-sdk/google'
 import { createStatisticsTools } from '@/lib/llm/tools'
 import type { SelectedArea } from '@/lib/types'
 import { getSystemPrompt, type AgentMode } from '@/lib/llm/prompts'
+import { buildSkillSystemPrompt, resolveSkillCategories } from '@/lib/llm/skills'
+import { prisma } from '@/lib/db'
 
 function getLLMModel() {
   const provider = process.env.LLM_PROVIDER ?? 'openai'
@@ -20,10 +22,11 @@ function getLLMModel() {
 }
 
 export async function POST(req: Request) {
-  const { messages, selectedAreas, agentMode = 'default' } = (await req.json()) as {
+  const { messages, selectedAreas, agentMode = 'default', skillId } = (await req.json()) as {
     messages: UIMessage[]
     selectedAreas?: SelectedArea[]
     agentMode?: AgentMode
+    skillId?: string
   }
 
   const estatApiKey = process.env.ESTAT_API_KEY
@@ -39,8 +42,25 @@ export async function POST(req: Request) {
           .join('\n')
       : '特定のエリアは選択されていません。ユーザーに地図でエリアを選択するよう案内してください。'
 
-  const tools = createStatisticsTools(estatApiKey)
-  const systemPrompt = getSystemPrompt(agentMode, areaContext)
+  let systemPrompt: string
+  let categoryFilter: string[] | null = null
+
+  if (skillId) {
+    const skill = await prisma.skill.findFirst({
+      where: { id: skillId, isActive: true },
+      include: { parent: true },
+    })
+    if (skill) {
+      systemPrompt = buildSkillSystemPrompt(skill, areaContext)
+      categoryFilter = resolveSkillCategories(skill)
+    } else {
+      systemPrompt = getSystemPrompt(agentMode, areaContext)
+    }
+  } else {
+    systemPrompt = getSystemPrompt(agentMode, areaContext)
+  }
+
+  const tools = createStatisticsTools(estatApiKey, categoryFilter)
 
   const result = streamText({
     model: getLLMModel(),
