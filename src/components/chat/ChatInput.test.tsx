@@ -2,6 +2,10 @@ import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import { ChatInput } from './ChatInput'
 
+vi.mock('./SkillPicker', () => ({
+  SkillPicker: () => <div data-testid="skill-picker" />,
+}))
+
 function createProps() {
   return {
     selectedAreas: [],
@@ -11,8 +15,10 @@ function createProps() {
     onChange: vi.fn(),
     onSubmit: vi.fn(),
     isLoading: false,
-    agentMode: 'default' as const,
-    onAgentModeChange: vi.fn(),
+    skillSelection: { type: 'auto' } as const,
+    onSkillSelectionChange: vi.fn(),
+    autoSelectedSkill: null,
+    onClearAutoSelected: vi.fn(),
   }
 }
 

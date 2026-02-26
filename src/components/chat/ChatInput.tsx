@@ -1,10 +1,9 @@
 import { FormEvent } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { MapPinned, Plus, Send, X } from 'lucide-react'
+import { MapPinned, Plus, Send, Wand2, X } from 'lucide-react'
 import type { SelectedArea } from '@/lib/types'
-import type { AgentMode } from '@/lib/llm/prompts'
-import { AgentModeSelector } from './AgentModeSelector'
+import { SkillPicker, type SkillSelection } from './SkillPicker'
 
 interface ChatInputProps {
   selectedAreas: SelectedArea[]
@@ -14,8 +13,10 @@ interface ChatInputProps {
   onChange: (e: React.ChangeEvent<HTMLInputElement>) => void
   onSubmit: (e: FormEvent<HTMLFormElement>) => void
   isLoading: boolean
-  agentMode: AgentMode
-  onAgentModeChange: (mode: AgentMode) => void
+  skillSelection: SkillSelection
+  onSkillSelectionChange: (v: SkillSelection) => void
+  autoSelectedSkill: { skillId: string; skillName: string } | null
+  onClearAutoSelected: () => void
   isMapOpen?: boolean
   onToggleMap?: () => void
 }
@@ -28,16 +29,31 @@ export function ChatInput({
   onChange,
   onSubmit,
   isLoading,
-  agentMode,
-  onAgentModeChange,
+  skillSelection,
+  onSkillSelectionChange,
+  autoSelectedSkill,
+  onClearAutoSelected,
   isMapOpen = false,
   onToggleMap,
 }: ChatInputProps) {
   return (
     <form onSubmit={onSubmit} className="border-t border-border/60 bg-background/85 backdrop-blur px-3 py-3">
       <div className="mx-auto w-full max-w-3xl rounded-2xl border border-border bg-card p-2 shadow-sm">
-        <div className="mb-2 flex items-center gap-2">
-          <AgentModeSelector mode={agentMode} onModeChange={onAgentModeChange} />
+        <div className="mb-2 flex items-center gap-2 flex-wrap">
+          <SkillPicker value={skillSelection} onChange={onSkillSelectionChange} />
+          {autoSelectedSkill && skillSelection.type === 'auto' && (
+            <div className="inline-flex items-center gap-1 rounded-full bg-primary/10 border border-primary/20 px-2 py-0.5 text-xs text-primary">
+              <Wand2 className="h-3 w-3" />
+              <span>{autoSelectedSkill.skillName}</span>
+              <button
+                type="button"
+                onClick={onClearAutoSelected}
+                className="ml-0.5 inline-flex h-4 w-4 items-center justify-center rounded-full hover:bg-primary/20"
+              >
+                <X className="h-3 w-3" />
+              </button>
+            </div>
+          )}
         </div>
         {selectedAreas.length > 0 && (
           <div className="mb-2 flex flex-wrap gap-1">
